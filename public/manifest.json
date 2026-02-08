@@ -1,0 +1,24 @@
+{
+  "short_name": "Mutirão ONG",
+  "name": "Sistema de Castração - ONG Tatuí",
+  "description": "Gestão de castração e histórico de vida animal.",
+  "icons": [
+    {
+      "src": "icons/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e3a8a",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}

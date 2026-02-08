@@ -1,0 +1,64 @@
+/* src/components/Footer/style.css */
+
+.footer-main {
+    background-color: #0f172a; /* Slate 900 - Tom elegante e sóbrio */
+    color: #f8fafc;
+    padding: 30px 20px;
+    margin-top: auto; /* Garante que fique no final da página */
+    border-top: 4px solid #2563eb; /* Linha de destaque azul */
+    width: 100%;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.footer-dev {
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.footer-dev strong {
+    color: #60a5fa; /* Azul claro para destacar seu nome */
+    font-weight: 700;
+}
+
+.footer-tag {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.footer-bottom {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+    color: #64748b;
+    text-align: center;
+    width: 100%;
+}
+
+/* Ajuste para telas pequenas (Celulares) */
+@media (max-width: 600px) {
+    .footer-main {
+        padding: 20px 15px;
+    }
+    
+    .footer-dev {
+        font-size: 0.95rem;
+        text-align: center;
+    }
+    
+    .footer-tag {
+        font-size: 0.75rem;
+    }
+}

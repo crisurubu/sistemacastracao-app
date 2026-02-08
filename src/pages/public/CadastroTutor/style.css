@@ -1,0 +1,94 @@
+/* Fundo da página */
+.cadastro-container {
+    min-height: 100vh;
+    background-color: #f0f7ff; /* Azul bem clarinho */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* O Card Principal */
+.cadastro-card {
+    background: white;
+    border-radius: 30px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-width: 950px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+/* Lado Azul (Informativo) */
+.info-side {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    padding: 40px;
+    width: 35%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Lado do Formulário */
+.form-side {
+    padding: 40px;
+    width: 65%;
+    background-color: white;
+}
+
+/* Campos de entrada */
+.input-field {
+    width: 100%;
+    padding: 12px 16px;
+    margin-top: 8px;
+    margin-bottom: 20px;
+    border: 2px solid #f1f5f9;
+    border-radius: 12px;
+    background-color: #f8fafc;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.input-field:focus {
+    border-color: #3b82f6;
+    background-color: white;
+}
+
+/* Botão Finalizar */
+.btn-enviar {
+    width: 100%;
+    background-color: #2563eb;
+    color: white;
+    padding: 16px;
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+    transition: transform 0.2s, background 0.3s;
+}
+
+.btn-enviar:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-2px);
+}
+
+/* Responsividade para Celular (PWA) */
+@media (max-width: 768px) {
+    .cadastro-card {
+        flex-direction: column;
+    }
+    .info-side {
+        width: 100%;
+        padding: 30px;
+    }
+    .form-side {
+        width: 100%;
+        padding: 30px;
+    }
+}

@@ -23,7 +23,19 @@ const CentralAlarmes = () => {
         }
     };
 
+    // Procure o useEffect no seu arquivo CentralAlarmes.jsx e mude para:
+
     useEffect(() => {
+        // 1. Pegamos os dados do usuário logado (ajuste conforme seu sistema guarda o user)
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        // 2. TRAVA DE SEGURANÇA: Se não for MASTER ou VOLUNTARIO, nem tenta buscar
+        if (user?.nivelAcesso === 'CLINICA') {
+            setLoading(false);
+            setError("Acesso restrito: Clínicas não possuem permissão para ver alertas da ONG.");
+            return;
+        }
+
         fetchAlarmes();
     }, []);
 
@@ -70,7 +82,7 @@ const CentralAlarmes = () => {
                 <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-2xl text-red-400 text-center">{error}</div>
             ) : alertas.length === 0 ? (
                 <div className="bg-slate-800/20 border border-slate-800 p-10 rounded-2xl text-center text-slate-500 italic">
-                    <CheckCircle2 className="mx-auto mb-4 text-green-500/50" size={48}/>
+                    <CheckCircle2 className="mx-auto mb-4 text-green-500/50" size={48} />
                     Tudo em ordem por aqui!
                 </div>
             ) : (
@@ -81,9 +93,8 @@ const CentralAlarmes = () => {
                         const keyUnica = alerta.id ? `alerta-${alerta.id}` : `alerta-idx-${index}`;
 
                         return (
-                            <div key={keyUnica} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${
-                                isFinanceiro ? 'bg-red-500/5 border-red-500/20 shadow-sm' : 'bg-orange-500/5 border-orange-500/20'
-                            }`}>
+                            <div key={keyUnica} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isFinanceiro ? 'bg-red-500/5 border-red-500/20 shadow-sm' : 'bg-orange-500/5 border-orange-500/20'
+                                }`}>
                                 <div className="flex items-center gap-4">
                                     <div className={`p-3 rounded-xl ${isFinanceiro ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}`}>
                                         {isFinanceiro ? <DollarSign size={24} /> : <PawPrint size={24} />}
@@ -94,7 +105,7 @@ const CentralAlarmes = () => {
                                             <span className={`px-2 py-0.5 rounded font-black ${isFinanceiro ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
                                                 {isFinanceiro ? 'PENDÊNCIA FINANCEIRA' : 'LOGÍSTICA / FILA'}
                                             </span>
-                                            
+
                                             {/* SÓ MOSTRA TUTOR SE FOR FINANCEIRO (ALERTA INDIVIDUAL) */}
                                             {isFinanceiro && alerta.tutor && alerta.tutor !== 'N/A' && (
                                                 <>
@@ -106,15 +117,14 @@ const CentralAlarmes = () => {
                                     </div>
                                 </div>
 
-                                <button 
+                                <button
                                     onClick={() => navigate(isFinanceiro ? '/admin/pagamentos' : '/admin/fila')}
-                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all border ${
-                                        isFinanceiro 
-                                        ? 'bg-slate-800 border-slate-700 hover:border-red-500/50' 
-                                        : 'bg-slate-800 border-slate-700 hover:border-orange-500/50'
-                                    }`}
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all border ${isFinanceiro
+                                            ? 'bg-slate-800 border-slate-700 hover:border-red-500/50'
+                                            : 'bg-slate-800 border-slate-700 hover:border-orange-500/50'
+                                        }`}
                                 >
-                                    {isFinanceiro ? 'Verificar Pagamento' : 'Organizar Fila'} 
+                                    {isFinanceiro ? 'Verificar Pagamento' : 'Organizar Fila'}
                                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </div>

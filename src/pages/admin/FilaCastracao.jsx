@@ -1,142 +1,156 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Phone, Calendar, Loader2, X, MapPin } from 'lucide-react';
+import { CheckCircle2, Phone, Calendar, Loader2, X, MapPin, Clock, User, PawPrint, Search } from 'lucide-react';
 import api from '../../services/api';
 
 const FilaCastracao = () => {
     const [fila, setFila] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // --- NOVOS ESTADOS PARA O AGENDAMENTO ---
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [dadosAgendamento, setDadosAgendamento] = useState({ data: '', hora: '', local: '' });
+    const [dadosAgendamento, setDadosAgendamento] = useState({ data: '', hora: '', clinicaId: '' });
     const [submitting, setSubmitting] = useState(false);
+    const [clinicas, setClinicas] = useState([]);
 
-    useEffect(() => {
-        const fetchFila = async () => {
-            try {
-                const response = await api.get('/admin/fila-espera');
-                console.log("DADOS RECEBIDOS NA FILA:", response.data);
-                setFila(response.data);
-            } catch (error) {
-                console.error("Erro ao buscar fila de castração:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchFila();
-    }, []);
+    useEffect(() => { fetchFila(); }, []);
 
-    // --- FUNÇÃO PARA ABRIR O MODAL ---
-    const handleAbrirAgendamento = (item) => {
-        setSelectedItem(item);
-        setShowModal(true);
+    const fetchFila = async () => {
+        try {
+            const response = await api.get('/admin/fila-espera');
+            setFila(response.data);
+        } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
-    // --- FUNÇÃO PARA SALVAR NA NOVA TABELA ---
-    const confirmarAgendamento = async () => {
-        if (!dadosAgendamento.data || !dadosAgendamento.hora || !dadosAgendamento.local) {
-            alert("Por favor, preencha todos os campos do agendamento.");
-            return;
-        }
+    const carregarClinicas = async () => {
+        try {
+            const response = await api.get('/admin/clinicas');
+            // Só traz clínicas operacionais
+            setClinicas(response.data.filter(c => c.administrador?.ativo));
+        } catch (error) { console.error(error); }
+    };
 
+    const handleAbrirAgendamento = (item) => {
+        setSelectedItem(item);
+        setDadosAgendamento({ data: '', hora: '', clinicaId: '' });
+        setShowModal(true);
+        carregarClinicas();
+    };
+
+    const confirmarAgendamento = async () => {
+        if (!dadosAgendamento.data || !dadosAgendamento.hora || !dadosAgendamento.clinicaId) {
+            alert("Preencha todos os campos do agendamento!"); return;
+        }
         setSubmitting(true);
         try {
             const payload = {
                 cadastroId: selectedItem.id,
                 dataHora: `${dadosAgendamento.data}T${dadosAgendamento.hora}`,
-                local: dadosAgendamento.local
+                clinicaId: dadosAgendamento.clinicaId
             };
-
-            // Envia para o novo endpoint que criaremos no Java
             await api.post('/admin/agendamentos', payload);
-            
-            // Remove da fila visualmente após sucesso
             setFila(fila.filter(f => f.id !== selectedItem.id));
             setShowModal(false);
-            alert("Agendamento realizado com sucesso! O pet saiu da fila.");
-        } catch (error) {
-            console.error("Erro ao agendar:", error);
-            alert("Erro ao salvar agendamento no servidor.");
-        } finally {
-            setSubmitting(false);
+            alert("Agendamento realizado com sucesso!");
+        } catch (error) { alert("Erro ao agendar."); } finally { setSubmitting(false); }
+    };
+
+    const getMedalha = (selo) => {
+        switch(selo) {
+            case 'OURO': return '🥇';
+            case 'PRATA': return '🥈';
+            case 'BRONZE': return '🥉';
+            default: return '🎖️';
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex h-96 flex-col items-center justify-center text-slate-500">
-                <Loader2 className="animate-spin mb-4" size={40} />
-                <p>Acessando fila de espera real...</p>
+    if (loading) return (
+        <div className="flex h-screen flex-col items-center justify-center bg-slate-950">
+            <div className="relative">
+                <div className="h-16 w-16 rounded-full border-t-4 border-blue-500 animate-spin"></div>
+                <PawPrint className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500" size={20} />
             </div>
-        );
-    }
+            <p className="mt-4 text-slate-400 font-medium animate-pulse">Sincronizando fila de espera...</p>
+        </div>
+    );
 
     return (
-        <div className="animate-fade-in space-y-6">
-            <div className="flex justify-between items-end">
+        <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans">
+            {/* Header Moderno */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Fila de Castração</h1>
-                    <p className="text-slate-400 text-sm">Pets com pagamento confirmado prontos para agendamento.</p>
+                    <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
+                        Fila de Castração <span className="text-blue-500 text-sm bg-blue-500/10 px-3 py-1 rounded-full uppercase tracking-widest">Master</span>
+                    </h1>
+                    <p className="text-slate-400 mt-2 font-medium">Controle de animais prontos para encaminhamento.</p>
                 </div>
-                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-                    <CheckCircle2 size={16} /> {fila.length} PETS PRONTOS
+                <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-inner">
+                    <div className="bg-emerald-500/20 p-3 rounded-xl">
+                        <CheckCircle2 className="text-emerald-400" size={24} />
+                    </div>
+                    <div className="pr-4">
+                        <span className="block text-2xl font-bold text-white leading-none">{fila.length}</span>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Pets Aguardando</span>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                {fila.length === 0 ? (
-                    <div className="p-20 text-center text-slate-500 italic">
-                        Nenhum animal com status 'NA_FILA' encontrado.
-                    </div>
-                ) : (
+            {/* Tabela Estilizada */}
+            <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden backdrop-blur-md shadow-2xl">
+                <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-900/50 border-b border-slate-800">
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Pet / Espécie</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tutor</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Data Cadastro</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Ações</th>
+                            <tr className="bg-slate-800/30">
+                                <th className="p-5 text-xs font-bold text-slate-500 uppercase">Informações do Pet</th>
+                                <th className="p-5 text-xs font-bold text-slate-500 uppercase">Responsável (Tutor)</th>
+                                <th className="p-5 text-xs font-bold text-slate-500 uppercase">Data do Cadastro</th>
+                                <th className="p-5 text-xs font-bold text-slate-500 uppercase text-center">Gestão</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-slate-800/50">
                             {fila.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-800/30 transition-colors group">
-                                    <td className="p-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-white font-bold">{item.pet?.nomeAnimal || 'Sem Nome'}</span>
-                                            <span className="text-slate-500 text-xs">{item.pet?.especie || '---'}</span>
+                                <tr key={item.id} className="hover:bg-blue-500/[0.02] transition-all group">
+                                    <td className="p-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg
+                                                ${item.pet?.especie?.toUpperCase() === 'GATO' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                {item.pet?.nomeAnimal?.charAt(0) || 'P'}
+                                            </div>
+                                            <div>
+                                                <div className="text-white font-bold text-lg group-hover:text-blue-400 transition-colors">{item.pet?.nomeAnimal}</div>
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider
+                                                    ${item.pet?.especie?.toUpperCase() === 'GATO' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                    {item.pet?.especie}
+                                                </span>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-slate-300 text-sm">
-                                        <div className="flex flex-col">
-                                            <span className="font-medium">{item.tutor?.nome || 'Não vinculado'}</span>
-                                            <span className="text-slate-500 text-[10px]">{item.tutor?.whatsapp || 'Sem contato'}</span>
+                                    <td className="p-5 text-slate-300">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-slate-800 p-2 rounded-lg text-slate-500"><User size={18} /></div>
+                                            <div>
+                                                <div className="font-semibold text-slate-200">{item.tutor?.nome}</div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Phone size={10} /> {item.tutor?.whatsapp}
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-slate-400 text-sm">
-                                        {item.dataSolicitacao ? new Date(item.dataSolicitacao).toLocaleDateString('pt-BR') : 'Recente'}
+                                    <td className="p-5">
+                                        <div className="inline-flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-xl border border-slate-700/50 text-slate-400 text-sm">
+                                            <Clock size={14} className="text-blue-500" />
+                                            {item.dataSolicitacao ? new Date(item.dataSolicitacao).toLocaleDateString('pt-BR') : 'Hoje'}
+                                        </div>
                                     </td>
-                                    <td className="p-4">
+                                    <td className="p-5">
                                         <div className="flex gap-2 justify-center">
                                             {item.tutor?.whatsapp && (
-                                                <a
-                                                    href={`https://wa.me/55${item.tutor.whatsapp.replace(/\D/g, '')}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="p-2 bg-blue-600/10 text-blue-400 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
-                                                    title="Chamar no WhatsApp"
-                                                >
-                                                    <Phone size={16} />
+                                                <a href={`https://wa.me/55${item.tutor.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
+                                                   className="p-3 bg-slate-800 text-slate-400 rounded-xl hover:bg-emerald-500 hover:text-white hover:scale-110 transition-all shadow-lg border border-slate-700">
+                                                    <Phone size={18} />
                                                 </a>
                                             )}
-                                            {/* BOTÃO QUE ABRE O MODAL */}
-                                            <button
-                                                onClick={() => handleAbrirAgendamento(item)}
-                                                className="p-2 bg-emerald-600/10 text-emerald-400 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"
-                                                title="Marcar Agendamento"
-                                            >
-                                                <Calendar size={16} />
+                                            <button onClick={() => handleAbrirAgendamento(item)}
+                                                className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500 hover:scale-110 transition-all shadow-lg shadow-blue-900/40 border border-blue-400/20">
+                                                <Calendar size={18} />
                                             </button>
                                         </div>
                                     </td>
@@ -144,41 +158,58 @@ const FilaCastracao = () => {
                             ))}
                         </tbody>
                     </table>
-                )}
+                </div>
             </div>
 
-            {/* MODAL DE AGENDAMENTO (SOBREPOSTO) */}
+            {/* MODAL DE AGENDAMENTO PREMIUM */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl">
-                        <div className="flex justify-between items-start mb-6">
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-900 border border-slate-700/50 p-8 rounded-[2.5rem] w-full max-w-md shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] relative overflow-hidden">
+                        {/* Detalhe Decorativo no Modal */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 blur-3xl -mr-16 -mt-16 rounded-full"></div>
+
+                        <div className="flex justify-between items-start mb-8 relative">
                             <div>
-                                <h2 className="text-xl font-bold text-white">Agendar Castração</h2>
-                                <p className="text-slate-400 text-xs italic">Pet: {selectedItem?.pet?.nomeAnimal}</p>
+                                <h2 className="text-2xl font-black text-white leading-tight">Agendar Procedimento</h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <PawPrint size={14} className="text-blue-500" />
+                                    <p className="text-slate-400 text-sm font-bold">{selectedItem?.pet?.nomeAnimal}</p>
+                                </div>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white transition-colors">
+                            <button onClick={() => setShowModal(false)} className="bg-slate-800 p-2 rounded-full text-slate-400 hover:text-white hover:bg-red-500/20 transition-all">
                                 <X size={20} />
                             </button>
                         </div>
                         
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Data do Procedimento</label>
-                                <input type="date" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    onChange={(e) => setDadosAgendamento({...dadosAgendamento, data: e.target.value})} />
+                        <div className="space-y-6 relative">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Data</label>
+                                    <input type="date" className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        onChange={(e) => setDadosAgendamento({...dadosAgendamento, data: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Horário</label>
+                                    <input type="time" className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        onChange={(e) => setDadosAgendamento({...dadosAgendamento, hora: e.target.value})} />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Horário</label>
-                                <input type="time" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    onChange={(e) => setDadosAgendamento({...dadosAgendamento, hora: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Local / Clínica</label>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Clínica Executora (Mérito)</label>
                                 <div className="relative">
-                                    <MapPin className="absolute left-3 top-3 text-slate-500" size={16} />
-                                    <input type="text" placeholder="Ex: Clínica Amigo Pet" 
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 pl-10 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                        onChange={(e) => setDadosAgendamento({...dadosAgendamento, local: e.target.value})} />
+                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+                                    <select 
+                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer font-medium"
+                                        onChange={(e) => setDadosAgendamento({...dadosAgendamento, clinicaId: e.target.value})}
+                                    >
+                                        <option value="">Selecione a parceira...</option>
+                                        {clinicas.map(c => (
+                                            <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                                                {getMedalha(c.selo)} {c.nome}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -186,9 +217,14 @@ const FilaCastracao = () => {
                         <button 
                             disabled={submitting}
                             onClick={confirmarAgendamento}
-                            className="w-full mt-8 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            className="w-full mt-10 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg shadow-blue-900/40"
                         >
-                            {submitting ? <Loader2 className="animate-spin" size={20} /> : "FINALIZAR AGENDAMENTO"}
+                            {submitting ? <Loader2 className="animate-spin" size={20} /> : (
+                                <>
+                                    <span>FINALIZAR ENCAMINHAMENTO</span>
+                                    <CheckCircle2 size={20} />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

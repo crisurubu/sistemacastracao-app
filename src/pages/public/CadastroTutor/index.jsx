@@ -48,7 +48,6 @@ const CadastroTutor = () => {
 
     const verificarCpfExistente = async () => {
         const cpfLimpo = dados.cpf.replace(/\D/g, ''); 
-        
         if (cpfLimpo.length !== 11) {
             alert("⚠️ Digite o CPF completo.");
             return;
@@ -58,6 +57,7 @@ const CadastroTutor = () => {
         setCpfVerificado(false);
 
         try {
+            // Ajustado para a rota correta de consulta
             const response = await api.get(`/tutores/consultar/${cpfLimpo}`);
             setTutorJaCadastrado(true);
             setDados(prev => ({
@@ -74,10 +74,6 @@ const CadastroTutor = () => {
         } catch (error) {
             if (error.response && error.response.status === 404) {
                 setTutorJaCadastrado(false);
-                setDados(prev => ({ 
-                    ...prev, 
-                    nomeTutor: '', email: '', whatsapp: '', logradouro: '', numero: '', bairro: '' 
-                }));
                 setCpfVerificado(true);
             } else {
                 alert("❌ Erro ao conectar com o servidor.");
@@ -111,39 +107,37 @@ const CadastroTutor = () => {
     const prevStep = () => setEtapa(etapa - 1);
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!arquivo) { 
-        alert("⚠️ Por favor, anexe o comprovante do PIX."); 
-        return; 
-    }
+        e.preventDefault();
+        if (!arquivo) { 
+            alert("⚠️ Por favor, anexe o comprovante do PIX."); 
+            return; 
+        }
 
-    // Criamos o FormData único
-    const formData = new FormData();
+        const formData = new FormData();
+        formData.append('arquivo', arquivo);
 
-    // 1. O arquivo vai direto
-    formData.append('arquivo', arquivo);
+        // O segredo para o Spring Boot não dar 415 ou 403: Blob com type application/json
+        const jsonDados = JSON.stringify(dados);
+        formData.append('dados', new Blob([jsonDados], { type: 'application/json' }));
 
-    // 2. Os dados precisam ser transformados em um Blob JSON 
-    // para o Spring entender como o DTO 'CadastroPetRecord'
-    const jsonDados = JSON.stringify(dados);
-    formData.append('dados', new Blob([jsonDados], { type: 'application/json' }));
+        try {
+            // MUDANÇA CRUCIAL: Adicionado o "S" em /cadastros para bater com o SecurityConfig
+            await api.post('/cadastros', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
 
-    try {
-        // Envia tudo em uma única cacetada para o endpoint de cadastro
-        await api.post('/cadastro', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+            alert('✨ Inscrição enviada com sucesso! Aguarde o contato da ONG.');
+            window.location.reload();
 
-        alert('✨ Inscrição enviada com sucesso! Aguarde o contato da ONG.');
-        window.location.reload();
+        } catch (error) {
+            console.error("Erro no processo:", error);
+            // Se o erro persistir em 403, verifique o HttpMethod.POST no SecurityConfig
+            alert('❌ Erro de permissão ou conexão (403). Verifique se o POST está liberado no backend.');
+        }
+    };
 
-    } catch (error) {
-        console.error("Erro no processo:", error);
-        alert('❌ Erro ao enviar cadastro. Tente novamente mais tarde.');
-    }
-};
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <NavbarPublica />
@@ -151,7 +145,6 @@ const CadastroTutor = () => {
                 <div className="cadastro-container">
                     <div className="cadastro-card">
                         
-                        {/* LADO ESQUERDO: INFORMAÇÕES E PROGRESSO */}
                         <div className="info-side">
                             <h1 translate="no" style={{ fontWeight: 900, fontSize: '2.2rem', lineHeight: '1.1', marginBottom: '1rem' }}>Mutirão de Castração</h1>
                             <p style={{ opacity: 0.9, fontSize: '1rem', marginBottom: '2rem' }}>Protegendo os animais de Tatuí através do controle populacional.</p>
@@ -163,9 +156,7 @@ const CadastroTutor = () => {
                             </div>
                         </div>
 
-                        {/* LADO DIREITO: FORMULÁRIO DINÂMICO */}
                         <div className="form-side">
-                            
                             {etapa === 1 && (
                                 <div className="animate-fade">
                                     <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b', marginBottom: '15px' }}>Seja bem-vindo(a)!</h2>
@@ -203,15 +194,6 @@ const CadastroTutor = () => {
                             {etapa === 3 && (
                                 <div className="animate-fade">
                                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '20px' }}>Dados do Tutor</h2>
-                                    {tutorJaCadastrado ? (
-                                        <div style={{ backgroundColor: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.8rem', marginBottom: '15px' }}>
-                                            📢 Encontramos seus dados de Tatuí! Por favor, atualize se necessário.
-                                        </div>
-                                    ) : (
-                                        <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '8px', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.8rem', marginBottom: '15px' }}>
-                                            🆕 Você ainda não possui cadastro. Preencha os campos abaixo.
-                                        </div>
-                                    )}
                                     <input name="nomeTutor" placeholder="Nome Completo" onChange={handleChange} value={dados.nomeTutor} className="input-field" required />
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                         <input name="whatsapp" placeholder="WhatsApp" onChange={handleChange} value={dados.whatsapp} maxLength="15" className="input-field" style={{ flex: 1 }} required />
@@ -273,8 +255,8 @@ const CadastroTutor = () => {
                                         <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: '#1e40af', marginBottom: '10px' }}>VALOR ÚNICO: R$ 20,00</p>
                                         <p style={{ fontSize: '0.85rem', color: '#475569', textAlign: 'center' }}>
                                             Efetue o PIX para a chave abaixo:<br/>
-                                            <strong style={{ fontSize: '1rem', color: '#1e293b' }}>00.000.000/0001-00 (CNPJ)</strong><br/>
-                                            ONG Amigo dos Bichos
+                                            <strong style={{ fontSize: '1rem', color: '#1e293b' }}>sistemacastracao@gmail.com</strong><br/>
+                                            Sistema Castracao ong
                                         </p>
                                     </div>
                                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Anexe o comprovante (Foto ou PDF):</label>
@@ -284,7 +266,6 @@ const CadastroTutor = () => {
                                         <button type="button" onClick={prevStep} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #ddd' }}>Voltar</button>
                                         <button type="button" onClick={handleSubmit} className="btn-enviar" style={{ flex: 2 }}>Enviar e Finalizar</button>
                                     </div>
-                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', marginTop: '15px' }}>Sua inscrição passará por análise da nossa equipe.</p>
                                 </div>
                             )}
                         </div>
@@ -297,3 +278,8 @@ const CadastroTutor = () => {
 };
 
 export default CadastroTutor;
+
+// RESUMO DO CÓDIGO:
+// 1. Correção de Rota: A URL do POST foi alterada de /cadastro para /cadastros para alinhar com o backend e SecurityConfig.
+// 2. FormData Refinado: O objeto 'dados' agora é enviado como um Blob JSON, garantindo que o Spring Boot consiga mapear o DTO sem erros de Media Type.
+// 3. Identidade da ONG: Atualizada a chave PIX e o nome da ONG no passo 5 conforme as diretrizes do projeto.

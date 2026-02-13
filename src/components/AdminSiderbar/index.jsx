@@ -1,20 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { 
     LayoutDashboard, PawPrint, BadgeDollarSign, 
-    Users, Bell, LogOut, CalendarDays, Menu 
+    Users, Bell, LogOut, CalendarDays, Menu,
+    Hospital 
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
+import { AuthContext } from '../../context/AuthContext';
 
 const AdminSidebar = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, logout } = useContext(AuthContext); 
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [totalAlarmes, setTotalAlarmes] = useState(0);
 
-    // Busca o total real de alarmes
+    const handleLogout = useCallback(() => {
+        logout(); 
+        navigate('/admin/login');
+    }, [logout, navigate]);
+
+    // Monitor de Inatividade (15 minutos)
+    useEffect(() => {
+        let timer;
+        const tempoInatividade = 15 * 60 * 1000; 
+        const resetTimer = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                alert("Sessão encerrada por inatividade.");
+                handleLogout();
+            }, tempoInatividade);
+        };
+        const eventos = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        eventos.forEach(evento => document.addEventListener(evento, resetTimer));
+        resetTimer(); 
+        return () => {
+            eventos.forEach(evento => document.removeEventListener(evento, resetTimer));
+            if (timer) clearTimeout(timer);
+        };
+    }, [handleLogout]);
+
+    // --- CORREÇÃO: Busca contagem apenas se tiver permissão ---
     useEffect(() => {
         const fetchContagem = async () => {
+            // Se for CLÍNICA, não tenta acessar /admin/alarmes (evita erro 403)
+            if (!user || user.nivelAcesso === 'CLINICA') {
+                setTotalAlarmes(0);
+                return;
+            }
+
             try {
                 const response = await api.get('/admin/alarmes');
                 setTotalAlarmes(response.data.length);
@@ -23,41 +57,44 @@ const AdminSidebar = () => {
             }
         };
         fetchContagem();
-    }, [location.pathname]);
+    }, [location.pathname, user]); // user como dependência para reavaliar no login/logout
 
-    const menus = [
-        { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/admin/painel' },
-        { icon: <BadgeDollarSign size={20}/>, label: 'Pagamentos', path: '/admin/pagamentos' },
-        { icon: <PawPrint size={20}/>, label: 'Fila de Castração', path: '/admin/fila' },
-        { icon: <CalendarDays size={20}/>, label: 'Agendados', path: '/admin/agendados' }, 
-        { icon: <Users size={20}/>, label: 'Tutores', path: '/admin/tutores' },
-        { icon: <Bell size={20}/>, label: 'Alarmes', path: '/admin/alarmes', badge: totalAlarmes },
+    // --- LÓGICA DE FILTRO DE MENUS ---
+    const menusCompletos = [
+        { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/admin/painel', roles: ['MASTER', 'VOLUNTARIO'] },
+        { icon: <BadgeDollarSign size={20}/>, label: 'Pagamentos', path: '/admin/pagamentos', roles: ['MASTER', 'VOLUNTARIO'] },
+        { icon: <Hospital size={20}/>, label: 'Clínicas', path: '/admin/clinicas', roles: ['MASTER'] }, 
+        { icon: <PawPrint size={20}/>, label: 'Fila de Castração', path: '/admin/fila', roles: ['MASTER', 'VOLUNTARIO'] },
+        { icon: <CalendarDays size={20}/>, label: 'Agendados', path: '/admin/agendados', roles: ['MASTER', 'VOLUNTARIO'] }, 
+        { icon: <Users size={20}/>, label: 'Tutores', path: '/admin/tutores', roles: ['MASTER', 'VOLUNTARIO'] },
+        { icon: <Bell size={20}/>, label: 'Alarmes', path: '/admin/alarmes', badge: totalAlarmes, roles: ['MASTER', 'VOLUNTARIO'] },
     ];
 
+    // Filtra os menus baseado no nível de acesso do usuário
+    const menusVisiveis = menusCompletos.filter(item => item.roles.includes(user?.nivelAcesso));
+
     return (
-        <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[#0f172a] border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out h-screen`}>
+        <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[#0f172a] border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out h-screen sticky top-0`}>
             
-            {/* Header com Botão de 3 Linhas (Menu) */}
             <div className="h-16 flex items-center px-4 border-b border-slate-800 gap-4">
                 <button 
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
-                    title="Menu"
                 >
                     <Menu size={24} />
                 </button>
                 
                 {!isCollapsed && (
-                    <span className="text-blue-500 font-black text-lg tracking-tighter truncate">
-                        CENTRAL_ONG
-                    </span>
+                    <div className="flex flex-col overflow-hidden">
+                        <span className="text-blue-500 font-black text-lg tracking-tighter truncate">CENTRAL_ONG</span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase">{user?.nivelAcesso}</span>
+                    </div>
                 )}
             </div>
 
-            {/* Itens do Menu */}
-            <nav className="flex-1 p-2 mt-4 space-y-1 overflow-y-auto overflow-x-hidden">
-                {menus.map((item) => {
-                    const isActive = location.pathname === item.path;
+            <nav className="flex-1 p-2 mt-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+                {menusVisiveis.map((item) => {
+                    const isActive = location.pathname === item.path || (item.path === '/admin/clinicas' && location.pathname.startsWith('/admin/clinicas'));
                     return (
                         <button 
                             key={item.label}
@@ -71,38 +108,27 @@ const AdminSidebar = () => {
                             <div className={`flex items-center w-full ${isCollapsed ? 'justify-center' : ''}`}>
                                 <div className="min-w-[20px]">{item.icon}</div>
                                 {!isCollapsed && (
-                                    <span className="ml-3 font-semibold text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <span className="ml-3 font-semibold text-sm whitespace-nowrap">
                                         {item.label}
                                     </span>
                                 )}
                             </div>
 
-                            {/* Badge Dinâmico - Matamos o "3" fixo */}
                             {item.badge > 0 && (
                                 <span className={`bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse flex items-center justify-center ${
-                                    isCollapsed 
-                                    ? 'absolute top-1 right-1 w-4 h-4 text-[8px]' 
-                                    : 'ml-auto px-1.5 py-0.5'
+                                    isCollapsed ? 'absolute top-1 right-1 w-4 h-4' : 'ml-auto px-1.5 py-0.5'
                                 }`}>
                                     {item.badge}
                                 </span>
-                            )}
-
-                            {/* Tooltip apenas se estiver colapsado */}
-                            {isCollapsed && (
-                                <div className="absolute left-16 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 border border-slate-700 shadow-xl">
-                                    {item.label}
-                                </div>
                             )}
                         </button>
                     );
                 })}
             </nav>
 
-            {/* Footer / Botão Sair */}
             <div className="p-2 border-t border-slate-800">
                 <button 
-                    onClick={() => navigate('/admin/login')}
+                    onClick={handleLogout}
                     className={`w-full flex items-center p-3 text-slate-500 hover:text-red-400 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
                 >
                     <LogOut size={20}/>

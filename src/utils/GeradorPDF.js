@@ -3,8 +3,12 @@ import autoTable from "jspdf-autotable";
 
 export const gerarGuiaCastracao = (agendamento) => {
     const doc = new jsPDF();
-    const { cadastro, codigoHash, dataHora, local } = agendamento;
+    
+    // Ajuste: O objeto que vem da busca por Hash pode ter campos levemente diferentes
+    // Garantimos que pegamos os dados independente se vem do Dashboard ou da busca Hash
+    const { cadastro, codigoHash, dataHora, local, hash } = agendamento;
     const { tutor, pet } = cadastro;
+    const hashFinal = codigoHash || hash;
 
     // --- CONFIGURAÇÃO DE CORES ---
     const AZUL_ESCURO = [0, 51, 102];
@@ -21,22 +25,21 @@ export const gerarGuiaCastracao = (agendamento) => {
     doc.text("PRONTUÁRIO DE ENCAMINHAMENTO", 105, 15, { align: "center" });
     
     doc.setFontSize(10);
-    doc.text("SISTEMA DE CONTROLE DE ZOONOSES - ONG SOCIAL", 105, 22, { align: "center" });
+    // AJUSTADO: Nome oficial da ONG conforme solicitado
+    doc.text("SISTEMA CASTRACAO ONG - CONTROLE DE ZOONOSES", 105, 22, { align: "center" });
 
     doc.setFontSize(11);
     doc.setTextColor(200, 0, 0);
-    doc.text(`CÓDIGO DE VALIDAÇÃO: ${codigoHash}`, 105, 30, { align: "center" });
+    doc.text(`CÓDIGO DE VALIDAÇÃO: ${hashFinal}`, 105, 30, { align: "center" });
 
-    // --- SEÇÃO 1: DADOS DO TUTOR (Ajustada) ---
+    // --- SEÇÃO 1: DADOS DO TUTOR ---
     autoTable(doc, {
         startY: 40,
         head: [['DADOS DO RESPONSÁVEL (TUTOR)']],
         body: [
             [`NOME: ${tutor.nome.toUpperCase()}`],
             [`CPF: ${tutor.cpf} `],
-            // AQUI ESTAVA O ERRO: Agora usamos apenas tutor.endereco que já vem montado do Java
             [`ENDEREÇO: ${tutor.endereco}`], 
-            // AQUI RESOLVE O UNDEFINED: Tenta pegar whatsapp, se não tiver, tenta telefone
             [`TELEFONE: ${tutor.whatsapp || tutor.telefone || 'NÃO INFORMADO'}  |  E-MAIL: ${tutor.email}`]
         ],
         theme: 'grid',
@@ -64,8 +67,8 @@ export const gerarGuiaCastracao = (agendamento) => {
         startY: doc.lastAutoTable.finalY + 5,
         head: [['INFORMAÇÕES DA CASTRAÇÃO']],
         body: [
-            [`DATA E HORA: ${new Date(dataHora).toLocaleString('pt-BR')}`],
-            [`LOCAL: ${local}`]
+            [`DATA E HORA: ${dataHora ? new Date(dataHora).toLocaleString('pt-BR') : 'A DEFINIR'}`],
+            [`LOCAL: ${local || 'CLÍNICA PARCEIRA'}`]
         ],
         theme: 'grid',
         headStyles: { fillColor: [93, 173, 226] },
@@ -89,7 +92,14 @@ export const gerarGuiaCastracao = (agendamento) => {
     doc.setFontSize(8);
     doc.setTextColor(...AZUL_ESCURO);
     doc.text("Este documento é obrigatório para a realização do procedimento.", 105, 287, { align: "center" });
+    // AJUSTADO: Email oficial da ONG conforme solicitado
     doc.text("Dúvidas: sistemacastracao@gmail.com", 105, 292, { align: "center" });
 
-    doc.save(`Prontuario_${pet.nomeAnimal}_${codigoHash}.pdf`);
+    doc.save(`Prontuario_${pet.nomeAnimal}_${hashFinal}.pdf`);
 };
+
+// Resumo do código: 
+// Este script utiliza a biblioteca jsPDF para gerar o documento oficial de encaminhamento da ONG. 
+// Ele organiza os dados em quatro seções visuais (Tutor, Animal, Logística e Assinaturas), 
+// garantindo que todos os dados obrigatórios para a castração estejam documentados e assinados, 
+// facilitando a auditoria posterior e o histórico de vida do animal.

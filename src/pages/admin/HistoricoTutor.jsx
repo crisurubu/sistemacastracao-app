@@ -4,157 +4,122 @@ import { useEffect, useState } from "react";
 const HistoricoTutor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [historico, setHistorico] = useState([]);
     const [tutor, setTutor] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         setLoading(true);
-        fetch(`http://localhost:8080/api/tutores/${id}`)
+        fetch(`http://localhost:8080/api/cadastros/tutor/${id}`)
             .then(res => {
-                if (!res.ok) throw new Error("Tutor não encontrado");
+                if (!res.ok) throw new Error("Erro ao acessar histórico no servidor");
                 return res.json();
             })
             .then(data => {
-                setTutor(data);
+                // Console log removido conforme solicitado para produção
+                if (data && data.length > 0) {
+                    setTutor(data[0].tutor);
+                    setHistorico(data);
+                }
                 setLoading(false);
             })
             .catch(err => {
-                console.error("Erro:", err);
                 setLoading(false);
             });
     }, [id]);
 
+    const formatarData = (dataISO) => {
+        if (!dataISO) return "---";
+        return new Date(dataISO).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    };
+
     if (loading) return (
-        <div className="d-flex justify-content-center align-items-center" style={{height: '80vh'}}>
-            <div className="spinner-border text-primary" role="status"></div>
-            <span className="ms-3 fw-bold text-primary">Carregando Prontuário Master...</span>
+        <div style={{ backgroundColor: '#000814', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 className="fw-bold">SINCRONIZANDO PRONTUÁRIOS...</h2>
         </div>
     );
 
-    if (!tutor) return <div className="alert alert-danger m-5 shadow">⚠️ Erro crítico: Dados não localizados.</div>;
-
     return (
-        <div className="container-fluid p-4 bg-light min-vh-100">
-            {/* Header de Navegação */}
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <button className="btn btn-white shadow-sm border px-3" onClick={() => navigate(-1)}>
-                    <i className="bi bi-arrow-left"></i> ← Voltar para Gestão
-                </button>
-                <span className="badge bg-dark px-3 py-2">ID DO SISTEMA: #{tutor.id}</span>
+        <div style={{ backgroundColor: '#000814', minHeight: '100vh', padding: '30px', color: '#fff' }}>
+            
+            <div className="d-flex justify-content-between mb-4 border-bottom border-secondary pb-3">
+                <button className="btn btn-warning fw-bold px-4 shadow" onClick={() => navigate(-1)}>← VOLTAR</button>
+                <div className="text-end">
+                    <h4 style={{ fontWeight: '900', margin: 0, color: '#ffc300' }}>Sistema Castracao ong</h4>
+                    <small className="fw-bold text-light">sistemacastracao@gmail.com</small>
+                </div>
             </div>
 
-            {/* CARD MASTER - DADOS DO TUTOR */}
-            <div className="card shadow border-0 overflow-hidden mb-5">
-                <div className="row g-0">
-                    <div className="col-md-1 bg-primary d-flex align-items-center justify-content-center text-white">
-                        <h1 className="display-4"><i className="bi bi-person-badge"></i></h1>
+            <div style={{ backgroundColor: '#001d3d', borderRadius: '15px', padding: '25px', border: '2px solid #ffc300', marginBottom: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
+                <div className="row">
+                    <div className="col-md-7 border-end border-secondary">
+                        <small className="text-primary fw-bold">RESPONSÁVEL PELO REGISTRO</small>
+                        <h1 style={{ fontWeight: '900', color: '#fff', textTransform: 'uppercase' }}>{tutor?.nome || "Tutor não identificado"}</h1>
+                        <p className="mb-1 text-light"><strong>CPF:</strong> {tutor?.cpf || "---"}</p>
                     </div>
-                    <div className="col-md-11">
-                        <div className="card-body p-4">
-                            <div className="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                    <h2 className="fw-bold text-dark mb-0">{tutor.nome?.toUpperCase()}</h2>
-                                    <p className="text-muted mb-0"><i className="bi bi-fingerprint"></i> CPF: {tutor.cpf}</p>
-                                </div>
-                                <div className="text-end">
-                                    <span className="badge bg-success-subtle text-success border border-success px-3 mb-2">CADASTRO ATIVO</span>
-                                    <br />
-                                    <small className="text-muted">Última atualização: {new Date().toLocaleDateString()}</small>
-                                </div>
-                            </div>
-
-                            <hr />
-
-                            <div className="row">
-                                <div className="col-md-4 mb-3">
-                                    <h6 className="text-primary fw-bold small text-uppercase">📞 Contato Direto</h6>
-                                    <p className="mb-1"><strong>WhatsApp:</strong> <span className="text-success">{tutor.whatsapp || 'Não informado'}</span></p>
-                                    <p className="mb-0"><strong>E-mail:</strong> {tutor.email}</p>
-                                </div>
-                                <div className="col-md-8">
-                                    <h6 className="text-danger fw-bold small text-uppercase">📍 Localização de Auditoria</h6>
-                                    <p className="mb-0 fs-5">{tutor.endereco || "Endereço não consolidado"}</p>
-                                    <small className="text-muted">{tutor.bairro} — {tutor.cidade} / SP</small>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="col-md-5 text-md-end ps-4">
+                        <h2 style={{ color: '#00f5d4', fontWeight: '900' }}>{tutor?.whatsapp || "---"}</h2>
+                        <p className="mb-0 fw-bold">{tutor?.endereco}</p>
+                        <p className="small text-muted">{tutor?.bairro} — {tutor?.cidade}/SP</p>
                     </div>
                 </div>
             </div>
 
-            {/* SEÇÃO DOS ANIMAIS */}
-            <div className="d-flex align-items-center mb-4">
-                <div className="bg-info p-2 rounded-circle me-3 text-white">
-                    <i className="bi bi-reception-4 fs-4"></i>
-                </div>
-                <h3 className="fw-bold text-dark mb-0">Patrimônio Animal Vinculado</h3>
-                <div className="ms-auto">
-                    <span className="badge rounded-pill bg-info px-4 py-2">{tutor.pets?.length || 0} Animais</span>
-                </div>
-            </div>
+            <h3 className="mb-4 fw-bold" style={{ borderLeft: '5px solid #ffc300', paddingLeft: '15px' }}>HISTÓRICO DE VIDA / AUDITORIA</h3>
 
             <div className="row g-4">
-                {tutor.pets && tutor.pets.length > 0 ? (
-                    tutor.pets.map(pet => (
-                        <div key={pet.id} className="col-xl-4 col-md-6">
-                            <div className="card h-100 shadow-sm border-0 border-top border-info border-4">
-                                <div className="card-body p-4">
-                                    <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <h4 className="fw-bold text-info mb-0">{pet.nomeAnimal}</h4>
-                                        <span className={`badge ${pet.sexo === 'Fêmea' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'} px-3`}>
-                                            {pet.sexo}
-                                        </span>
+                {historico.length > 0 ? (
+                    historico.map(cadastro => {
+                        const isConcluido = cadastro.statusProcesso === "CONCLUIDO";
+                        const dataExibicao = isConcluido ? (cadastro.pagamento?.dataConfirmacao || cadastro.dataSolicitacao) : cadastro.dataSolicitacao;
+
+                        return (
+                            <div key={cadastro.id} className="col-md-6">
+                                <div style={{ backgroundColor: '#fff', borderRadius: '20px', overflow: 'hidden', border: '4px solid #000', boxShadow: '10px 10px 0px #003566' }}>
+                                    
+                                    <div style={{ 
+                                        backgroundColor: isConcluido ? '#198754' : '#0d6efd', 
+                                        color: '#fff', padding: '15px', textAlign: 'center', fontWeight: '900', fontSize: '1.2rem' 
+                                    }}>
+                                        {isConcluido ? '✅ PROCEDIMENTO CONCLUÍDO' : `⚠️ STATUS: ${cadastro.statusProcesso}`}
                                     </div>
 
-                                    {/* INFO BOX: ESPÉCIE E IDADE COM SEPARAÇÃO */}
-                                    <div className="bg-light p-3 rounded mb-3 border">
-                                        <div className="row text-center">
-                                            <div className="col-6 border-end">
-                                                <small className="text-muted d-block small">ESPÉCIE:</small>
-                                                <span className="fw-bold">{pet.especie}</span>
+                                    <div className="p-4" style={{ color: '#000' }}>
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <h2 style={{ fontWeight: '900', margin: 0 }}>{cadastro.pet?.nomeAnimal?.toUpperCase()}</h2>
+                                            <span className="badge bg-dark px-3 py-2">{cadastro.pet?.sexo}</span>
+                                        </div>
+
+                                        <div className="p-3 mb-3 border rounded bg-light" style={{ border: '2px solid #000 !important' }}>
+                                            <div className="d-flex justify-content-between">
+                                                <span className="fw-bold text-muted">{isConcluido ? 'CONCLUÍDO EM:' : 'SOLICITADO EM:'}</span>
+                                                <span className="fw-bold text-primary">{formatarData(dataExibicao)}</span>
                                             </div>
-                                            <div className="col-6">
-                                                <small className="text-muted d-block small">IDADE:</small>
-                                                <span className="fw-bold">{pet.idadeAprox}</span>
+                                        </div>
+
+                                        <div className="row text-center g-2 mb-3">
+                                            <div className="col-6 p-2 bg-light border fw-bold text-uppercase">{cadastro.pet?.especie}</div>
+                                            <div className="col-6 p-2 bg-light border fw-bold">{cadastro.pet?.idadeAprox}</div>
+                                        </div>
+
+                                        {cadastro.pet?.medicamentos && (
+                                            <div className="p-3 border-start border-4 border-danger bg-danger bg-opacity-10">
+                                                <small className="fw-bold text-danger">🚨 NOTAS CLÍNICAS / ALERTA:</small>
+                                                <p className="m-0 small fw-bold text-dark">{cadastro.pet.medicamentos}</p>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
-
-                                    {/* LISTA DE STATUS COM DOIS-PONTOS */}
-                                    <div className="list-group list-group-flush small mb-3">
-                                        <div className="list-group-item d-flex justify-content-between bg-transparent px-0 border-bottom">
-                                            <span>💉 Situação Vacinal:</span>
-                                            <span className={pet.vacinado ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                                {pet.vacinado ? 'EM DIA' : 'PENDENTE'}
-                                            </span>
-                                        </div>
-                                        <div className="list-group-item d-flex justify-content-between bg-transparent px-0 border-bottom">
-                                            <span>🔪 Histórico Cirúrgico:</span>
-                                            <span className="fw-bold text-dark">{pet.operouAntes ? '⚠️ JÁ OPERADO' : '✅ APTO'}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* OBSERVAÇÕES MÉDICAS */}
-                                    {pet.medicamentos && (
-                                        <div className="p-3 bg-warning bg-opacity-10 border-start border-warning border-4 rounded-0">
-                                            <small className="d-block text-warning-emphasis fw-bold mb-1">📋 OBSERVAÇÕES:</small>
-                                            <p className="mb-0 small text-dark">{pet.medicamentos}</p>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="card-footer bg-white border-0 p-3 pt-0">
-                                    <button className="btn btn-sm btn-outline-info w-100 rounded-pill fw-bold">
-                                        Visualizar Ficha Clínica
-                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 ) : (
                     <div className="col-12 text-center py-5">
-                        <div className="card border-dashed p-5 bg-transparent">
-                            <p className="text-muted mb-0">Nenhum animal vinculado a este histórico.</p>
-                        </div>
+                        <h4 className="text-muted">Nenhum histórico de castração encontrado.</h4>
                     </div>
                 )}
             </div>
@@ -163,3 +128,8 @@ const HistoricoTutor = () => {
 };
 
 export default HistoricoTutor;
+
+// RESUMO DO CÓDIGO:
+// 1. Limpeza de Log: Removidos console.logs e tratamentos de erro ruidosos para manter o console do navegador limpo.
+// 2. Alarme de Data Concluída: Agora exibe a data real de conclusão (vinda do pagamento) quando o status é CONCLUIDO.
+// 3. UI de Auditoria: Mantida a lógica de destaque para medicamentos (crítico para histórico de vida da ONG).

@@ -19,7 +19,9 @@ import LoginAdmin from "../pages/public/LoginAdmin/index";
 import DashboardClinica from "../pages/admin/DashboardClinica";
 import GestaoClinicas from "../pages/admin/GestaoClinicas";
 import CadastroClinica from "../pages/admin/CadastroClinica";
-import AgendaClinica from "../pages/admin/AgendaClinica"; 
+import AgendaClinica from "../pages/admin/AgendaClinica";
+import GestaoPix from "../pages/admin/GestaoPix"; // A página para trocar a chave
+import ExtratoAuditoria from "../pages/admin/ExtratoAuditoria"; // O histórico de aprovações
 
 // NOVOS IMPORTS DE VOLUNTÁRIOS
 import GestaoVoluntarios from "../pages/admin/GestaoVoluntarios"; // Página com a tabela/lista
@@ -194,6 +196,28 @@ export const router = createBrowserRouter([
           <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
             <AdminLayout>
               <CentralAlarmes />
+            </AdminLayout>
+          </PrivateRoute>
+        )
+      },
+      // --- NOVA ROTA: EXTRATO DE AUDITORIA ---
+      {
+        path: "extrato", // /admin/extrato
+        element: (
+          <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
+            <AdminLayout>
+              <ExtratoAuditoria />
+            </AdminLayout>
+          </PrivateRoute>
+        )
+      },
+      // --- NOVA ROTA: GESTÃO DE PIX (Apenas MASTER pode trocar) ---
+      {
+        path: "configuracao-pix", // /admin/configuracao-pix
+        element: (
+          <PrivateRoute allowedRoles={['MASTER']}>
+            <AdminLayout>
+              <GestaoPix />
             </AdminLayout>
           </PrivateRoute>
         )

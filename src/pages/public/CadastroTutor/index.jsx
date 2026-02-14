@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import './style.css';
 
@@ -7,9 +7,21 @@ import Footer from '../../../components/Footer';
 
 const CadastroTutor = () => {
     const [etapa, setEtapa] = useState(1);
-    const [tutorJaCadastrado, setTutorJaCadastrado] = useState(false);
     const [loadingCpf, setLoadingCpf] = useState(false);
     const [cpfVerificado, setCpfVerificado] = useState(false);
+    
+    // ESTADO ATUALIZADO COM OS NOVOS CAMPOS DO BANCO
+    const [pixAtivo, setPixAtivo] = useState({
+        chave: 'sistemacastracao@gmail.com',
+        nomeRecebedor: 'Sistema Castracao ong',
+        tipoChave: 'E-MAIL',
+        valorTaxa: 25.00,
+        banco: 'Nubank',
+        agencia: '0001',
+        conta: '1234567-8',
+        documentoRecebedor: '00.000.000/0001-00'
+    });
+
     const [dados, setDados] = useState({
         nomeTutor: '',
         cpf: '',
@@ -29,6 +41,30 @@ const CadastroTutor = () => {
     });
     const [arquivo, setArquivo] = useState(null);
 
+    // BUSCA ATUALIZADA PARA MAPEAR TODOS OS NOVOS CAMPOS DA API
+    useEffect(() => {
+        const carregarPixAtivo = async () => {
+            try {
+                const response = await api.get('/admin/configuracao-pix/ativa');
+                if (response.data) {
+                    setPixAtivo({
+                        chave: response.data.chave,
+                        nomeRecebedor: response.data.nomeRecebedor,
+                        tipoChave: response.data.tipoChave,
+                        valorTaxa: response.data.valorTaxa,
+                        banco: response.data.banco,
+                        agencia: response.data.agencia,
+                        conta: response.data.conta,
+                        documentoRecebedor: response.data.documentoRecebedor
+                    });
+                }
+            } catch (error) {
+                console.error("Erro ao buscar dados bancários:", error);
+            }
+        };
+        carregarPixAtivo();
+    }, []);
+
     const aplicarMascaraCPF = (value) => {
         return value
             .replace(/\D/g, '')
@@ -46,20 +82,29 @@ const CadastroTutor = () => {
             .replace(/(-\d{4})\d+?$/, '$1');
     };
 
+    const handleCopyPix = () => {
+        navigator.clipboard.writeText(pixAtivo.chave);
+        const feedback = document.getElementById('copy-feedback');
+        if (feedback) {
+            feedback.innerText = '✅ CHAVE COPIADA!';
+            feedback.style.color = '#059669';
+            setTimeout(() => {
+                feedback.innerText = `Toque para copiar a chave ${pixAtivo.tipoChave.toLowerCase()}`;
+                feedback.style.color = '#64748b';
+            }, 2000);
+        }
+    };
+
     const verificarCpfExistente = async () => {
         const cpfLimpo = dados.cpf.replace(/\D/g, ''); 
         if (cpfLimpo.length !== 11) {
             alert("⚠️ Digite o CPF completo.");
             return;
         }
-
         setLoadingCpf(true);
         setCpfVerificado(false);
-
         try {
-            // Ajustado para a rota correta de consulta
             const response = await api.get(`/tutores/consultar/${cpfLimpo}`);
-            setTutorJaCadastrado(true);
             setDados(prev => ({
                 ...prev,
                 nomeTutor: response.data.nome || '',
@@ -73,7 +118,6 @@ const CadastroTutor = () => {
             setCpfVerificado(true);
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                setTutorJaCadastrado(false);
                 setCpfVerificado(true);
             } else {
                 alert("❌ Erro ao conectar com o servidor.");
@@ -86,20 +130,28 @@ const CadastroTutor = () => {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         let valorFinal = type === 'checkbox' ? checked : value;
-
         if (name === 'cpf') {
             valorFinal = aplicarMascaraCPF(value);
             setCpfVerificado(false); 
         }
         if (name === 'whatsapp') valorFinal = aplicarMascaraWhatsApp(value);
-
         setDados({ ...dados, [name]: valorFinal });
     };
 
     const nextStep = () => {
-        if (etapa === 3 && (!dados.nomeTutor || !dados.whatsapp || !dados.logradouro)) {
-            alert("⚠️ Preencha os dados obrigatórios do tutor.");
-            return;
+        if (etapa === 3) {
+            const camposObrigatorios = ['nomeTutor', 'whatsapp', 'email', 'logradouro', 'numero', 'bairro'];
+            const faltantes = camposObrigatorios.filter(campo => !dados[campo]);
+            if (faltantes.length > 0) {
+                alert("⚠️ Por favor, preencha todos os dados do tutor.");
+                return;
+            }
+        }
+        if (etapa === 4) {
+            if (!dados.nomePet || !dados.idadeAprox) {
+                alert("⚠️ Por favor, informe o nome e a idade aproximada do pet.");
+                return;
+            }
         }
         setEtapa(etapa + 1);
     };
@@ -112,29 +164,19 @@ const CadastroTutor = () => {
             alert("⚠️ Por favor, anexe o comprovante do PIX."); 
             return; 
         }
-
         const formData = new FormData();
         formData.append('arquivo', arquivo);
-
-        // O segredo para o Spring Boot não dar 415 ou 403: Blob com type application/json
         const jsonDados = JSON.stringify(dados);
         formData.append('dados', new Blob([jsonDados], { type: 'application/json' }));
-
         try {
-            // MUDANÇA CRUCIAL: Adicionado o "S" em /cadastros para bater com o SecurityConfig
             await api.post('/cadastros', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-
             alert('✨ Inscrição enviada com sucesso! Aguarde o contato da ONG.');
             window.location.reload();
-
         } catch (error) {
             console.error("Erro no processo:", error);
-            // Se o erro persistir em 403, verifique o HttpMethod.POST no SecurityConfig
-            alert('❌ Erro de permissão ou conexão (403). Verifique se o POST está liberado no backend.');
+            alert('❌ Erro ao enviar. Verifique sua conexão ou tente novamente.');
         }
     };
 
@@ -144,7 +186,6 @@ const CadastroTutor = () => {
             <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
                 <div className="cadastro-container">
                     <div className="cadastro-card">
-                        
                         <div className="info-side">
                             <h1 translate="no" style={{ fontWeight: 900, fontSize: '2.2rem', lineHeight: '1.1', marginBottom: '1rem' }}>Mutirão de Castração</h1>
                             <p style={{ opacity: 0.9, fontSize: '1rem', marginBottom: '2rem' }}>Protegendo os animais de Tatuí através do controle populacional.</p>
@@ -162,7 +203,9 @@ const CadastroTutor = () => {
                                     <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b', marginBottom: '15px' }}>Seja bem-vindo(a)!</h2>
                                     <p style={{ color: '#64748b', lineHeight: '1.6', marginBottom: '10px' }}>O mutirão oferece castração a preço social para garantir a saúde do seu pet.</p>
                                     <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
-                                        <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b' }}>Custo por animal: R$ 20,00</p>
+                                        <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b' }}>
+                                            Custo por animal: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}
+                                        </p>
                                         <small style={{ color: '#94a3b8' }}>Este valor ajuda nos custos de materiais cirúrgicos.</small>
                                     </div>
                                     <button type="button" onClick={() => setEtapa(2)} className="btn-enviar">Iniciar Inscrição</button>
@@ -251,15 +294,57 @@ const CadastroTutor = () => {
                             {etapa === 5 && (
                                 <div className="animate-fade">
                                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '10px' }}>Pagamento da Taxa</h2>
+                                    
                                     <div style={{ backgroundColor: '#f0f7ff', padding: '20px', borderRadius: '15px', border: '2px dashed #3b82f6', marginBottom: '15px' }}>
-                                        <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: '#1e40af', marginBottom: '10px' }}>VALOR ÚNICO: R$ 20,00</p>
-                                        <p style={{ fontSize: '0.85rem', color: '#475569', textAlign: 'center' }}>
-                                            Efetue o PIX para a chave abaixo:<br/>
-                                            <strong style={{ fontSize: '1rem', color: '#1e293b' }}>sistemacastracao@gmail.com</strong><br/>
-                                            Sistema Castracao ong
+                                        <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: '#1e40af', marginBottom: '15px' }}>
+                                            VALOR: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}
                                         </p>
+
+                                        {/* BOX DE DADOS BANCÁRIOS REAIS */}
+                                        <div style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' }}>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Banco:</span>
+                                                <strong style={{ color: '#1e293b', fontSize: '0.85rem' }}>{pixAtivo.banco}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' }}>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Agência/Conta:</span>
+                                                <strong style={{ color: '#1e293b', fontSize: '0.85rem' }}>{pixAtivo.agencia} / {pixAtivo.conta}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' }}>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Favorecido:</span>
+                                                <strong style={{ color: '#1e293b', fontSize: '0.85rem' }}>{pixAtivo.nomeRecebedor}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>CPF/CNPJ:</span>
+                                                <strong style={{ color: '#1e293b', fontSize: '0.85rem' }}>{pixAtivo.documentoRecebedor}</strong>
+                                            </div>
+                                        </div>
+
+                                        {/* CHAVE PIX INTERATIVA */}
+                                        <div 
+                                            onClick={handleCopyPix}
+                                            style={{ 
+                                                backgroundColor: '#1e293b', 
+                                                padding: '12px', 
+                                                borderRadius: '12px', 
+                                                cursor: 'pointer',
+                                                textAlign: 'center',
+                                                border: '2px solid #3b82f6'
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                                                Toque para copiar a chave Pix
+                                            </span>
+                                            <strong style={{ fontSize: '1rem', color: '#fff' }}>{pixAtivo.chave}</strong>
+                                            <div id="copy-feedback" style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '5px' }}>
+                                                Clique para copiar e pagar no seu banco
+                                            </div>
+                                        </div>
                                     </div>
-                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Anexe o comprovante (Foto ou PDF):</label>
+                                    
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
+                                        Anexe o comprovante (Foto ou PDF):
+                                    </label>
                                     <input type="file" onChange={(e) => setArquivo(e.target.files[0])} className="input-field" accept="image/*,.pdf" required />
                                     
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
@@ -278,8 +363,3 @@ const CadastroTutor = () => {
 };
 
 export default CadastroTutor;
-
-// RESUMO DO CÓDIGO:
-// 1. Correção de Rota: A URL do POST foi alterada de /cadastro para /cadastros para alinhar com o backend e SecurityConfig.
-// 2. FormData Refinado: O objeto 'dados' agora é enviado como um Blob JSON, garantindo que o Spring Boot consiga mapear o DTO sem erros de Media Type.
-// 3. Identidade da ONG: Atualizada a chave PIX e o nome da ONG no passo 5 conforme as diretrizes do projeto.

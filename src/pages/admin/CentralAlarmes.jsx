@@ -23,19 +23,13 @@ const CentralAlarmes = () => {
         }
     };
 
-    // Procure o useEffect no seu arquivo CentralAlarmes.jsx e mude para:
-
     useEffect(() => {
-        // 1. Pegamos os dados do usuário logado (ajuste conforme seu sistema guarda o user)
         const user = JSON.parse(localStorage.getItem('user'));
-
-        // 2. TRAVA DE SEGURANÇA: Se não for MASTER ou VOLUNTARIO, nem tenta buscar
         if (user?.nivelAcesso === 'CLINICA') {
             setLoading(false);
             setError("Acesso restrito: Clínicas não possuem permissão para ver alertas da ONG.");
             return;
         }
-
         fetchAlarmes();
     }, []);
 
@@ -83,34 +77,70 @@ const CentralAlarmes = () => {
             ) : alertas.length === 0 ? (
                 <div className="bg-slate-800/20 border border-slate-800 p-10 rounded-2xl text-center text-slate-500 italic">
                     <CheckCircle2 className="mx-auto mb-4 text-green-500/50" size={48} />
-                    Tudo em ordem por aqui!
+                    <p>Tudo em ordem por aqui!</p>
                 </div>
             ) : (
                 <div className="grid gap-4">
                     {alertas.map((alerta, index) => {
-                        // Lógica para diferenciar os tipos
                         const isFinanceiro = alerta.tipo === 'CRÍTICO' || alerta.mensagem?.toUpperCase().includes('PIX');
+                        const isAuditoria = alerta.tipo === 'AUDITORIA';
+                        const isFilaCritica = alerta.mensagem?.toUpperCase().includes('FILA');
+                        
                         const keyUnica = alerta.id ? `alerta-${alerta.id}` : `alerta-idx-${index}`;
 
+                        let cardStyle = "bg-orange-500/5 border-orange-500/20";
+                        let iconStyle = "bg-orange-500/10 text-orange-500";
+                        let badgeStyle = "bg-orange-500/20 text-orange-400";
+                        let badgeLabel = "LOGÍSTICA / FILA";
+
+                        if (isFinanceiro) {
+                            cardStyle = "bg-red-500/5 border-red-500/20 shadow-sm";
+                            iconStyle = "bg-red-500/10 text-red-500";
+                            badgeStyle = "bg-red-500/20 text-red-400";
+                            badgeLabel = "PENDÊNCIA FINANCEIRA";
+                        } else if (isAuditoria) {
+                            cardStyle = "bg-purple-500/5 border-purple-500/20 shadow-sm";
+                            iconStyle = "bg-purple-500/10 text-purple-400";
+                            badgeStyle = "bg-purple-500/20 text-purple-400";
+                            badgeLabel = "HISTÓRICO / AUDITORIA";
+                        }
+
                         return (
-                            <div key={keyUnica} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isFinanceiro ? 'bg-red-500/5 border-red-500/20 shadow-sm' : 'bg-orange-500/5 border-orange-500/20'
-                                }`}>
+                            <div key={keyUnica} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${cardStyle}`}>
                                 <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-xl ${isFinanceiro ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}`}>
-                                        {isFinanceiro ? <DollarSign size={24} /> : <PawPrint size={24} />}
+                                    <div className={`p-3 rounded-xl ${iconStyle}`}>
+                                        {isFinanceiro ? <DollarSign size={24} /> : 
+                                         isAuditoria ? <LayoutList size={24} /> : 
+                                         <PawPrint size={24} />}
                                     </div>
                                     <div>
                                         <h3 className="text-white font-bold text-sm uppercase">{alerta.mensagem}</h3>
                                         <div className="flex items-center gap-2 mt-1 text-xs">
-                                            <span className={`px-2 py-0.5 rounded font-black ${isFinanceiro ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                                                {isFinanceiro ? 'PENDÊNCIA FINANCEIRA' : 'LOGÍSTICA / FILA'}
+                                            <span className={`px-2 py-0.5 rounded font-black ${badgeStyle}`}>
+                                                {badgeLabel}
                                             </span>
 
-                                            {/* SÓ MOSTRA TUTOR SE FOR FINANCEIRO (ALERTA INDIVIDUAL) */}
-                                            {isFinanceiro && alerta.tutor && alerta.tutor !== 'N/A' && (
+                                            {/* CORREÇÃO DO N/A NO RESPONSÁVEL */}
+                                            {alerta.responsavel && alerta.responsavel !== 'N/A' && (
+                                                <>
+                                                    <span className="text-slate-700">|</span>
+                                                    <span className="text-slate-500 italic">Resp: {alerta.responsavel}</span>
+                                                </>
+                                            )}
+
+                                            {/* CORREÇÃO DO N/A NO TUTOR */}
+                                            {alerta.tutor && alerta.tutor !== 'N/A' && (
                                                 <>
                                                     <span className="text-slate-700">|</span>
                                                     <span className="text-slate-500 italic">Tutor: {alerta.tutor}</span>
+                                                </>
+                                            )}
+
+                                            {/* MENSAGEM AUXILIAR PARA FILA SEM DADOS INDIVIDUAIS */}
+                                            {isFilaCritica && (!alerta.tutor || alerta.tutor === 'N/A') && (
+                                                <>
+                                                    <span className="text-slate-700">|</span>
+                                                    <span className="text-blue-400/60 font-medium">Aguardando agendamento em massa</span>
                                                 </>
                                             )}
                                         </div>
@@ -118,13 +148,14 @@ const CentralAlarmes = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => navigate(isFinanceiro ? '/admin/pagamentos' : '/admin/fila')}
-                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all border ${isFinanceiro
-                                            ? 'bg-slate-800 border-slate-700 hover:border-red-500/50'
-                                            : 'bg-slate-800 border-slate-700 hover:border-orange-500/50'
-                                        }`}
+                                    onClick={() => navigate(isAuditoria ? '/admin/extrato' : isFinanceiro ? '/admin/pagamentos' : '/admin/fila')}
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all border bg-slate-800 border-slate-700 ${
+                                        isAuditoria ? 'hover:border-purple-500/50' : 
+                                        isFinanceiro ? 'hover:border-red-500/50' : 
+                                        'hover:border-orange-500/50'
+                                    }`}
                                 >
-                                    {isFinanceiro ? 'Verificar Pagamento' : 'Organizar Fila'}
+                                    {isAuditoria ? 'Ver Histórico' : isFinanceiro ? 'Verificar Pagamento' : 'Organizar Fila'}
                                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </div>

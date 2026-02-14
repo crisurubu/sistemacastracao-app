@@ -11,48 +11,45 @@ const LoginAdmin = () => {
     const [erro, setErro] = useState('');
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErro('');
+        e.preventDefault();
+        setErro('');
 
-    try {
-        const response = await fetch('http://localhost:8080/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, senha })
-        });
+        const loginData = {
+            email: email.trim(),
+            senha: senha.trim()
+        };
 
-        const data = await response.json();
+        try {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginData)
+            });
 
-        if (response.ok) {
-            login(data.user, data.token);
+            const data = await response.json();
 
-            if (data.user.nivelAcesso === 'CLINICA') {
-                navigate('/admin/dashboard-clinica');
+            if (response.ok) {
+                login(data.user, data.token);
+                if (data.user.nivelAcesso === 'CLINICA') {
+                    navigate('/admin/dashboard-clinica');
+                } else {
+                    navigate('/admin/painel');
+                }
             } else {
-                navigate('/admin/painel');
+                if (response.status === 401) {
+                    setErro('E-mail ou senha incorretos.');
+                } else {
+                    setErro(data.erro || 'Erro ao realizar login.');
+                }
             }
-        } else {
-            // TRATAMENTO DE ERRO AQUI:
-            // Se o status for 401, informamos credenciais inválidas. 
-            // Caso contrário, usamos a mensagem vinda do back-end ou uma genérica.
-            if (response.status === 401) {
-                setErro('E-mail ou senha incorretos.');
-            } else {
-                setErro(data.message || 'Erro ao realizar login.');
-            }
+        } catch (err) {
+            setErro('Erro de conexão com o servidor');
         }
-    } catch (err) {
-        setErro('Erro de conexão com o servidor');
-    }
-};
+    };
 
     return (
-        /* FUNDO DA TELA - ESCURO TOTAL */
         <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 p-4">
-
-            {/* CARD DE LOGIN - AZUL ESCURO */}
             <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8 shadow-2xl border border-slate-800">
-
                 <div className="mb-8 text-center">
                     <h2 className="text-3xl font-bold text-white">Sistema Castração</h2>
                     <p className="mt-2 text-blue-400 font-medium uppercase text-xs tracking-widest">Área Administrativa</p>
@@ -65,11 +62,8 @@ const LoginAdmin = () => {
                         </div>
                     )}
 
-                    {/* CAMPO EMAIL */}
                     <div className="flex flex-col">
-                        <label className="mb-2 text-sm font-semibold text-slate-300 bg-transparent">
-                            E-mail
-                        </label>
+                        <label className="mb-2 text-sm font-semibold text-slate-300">E-mail</label>
                         <input
                             type="email"
                             value={email}
@@ -80,11 +74,8 @@ const LoginAdmin = () => {
                         />
                     </div>
 
-                    {/* CAMPO SENHA */}
                     <div className="flex flex-col">
-                        <label className="mb-2 text-sm font-semibold text-slate-300 bg-transparent">
-                            Senha
-                        </label>
+                        <label className="mb-2 text-sm font-semibold text-slate-300">Senha</label>
                         <input
                             type="password"
                             value={senha}

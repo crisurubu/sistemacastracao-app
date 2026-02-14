@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Clock, Loader2, DollarSign } from 'lucide-react';
 import api from '../../services/api';
 
 const PagamentosPendentes = () => {
@@ -25,37 +25,36 @@ const PagamentosPendentes = () => {
         fetchPagamentos();
     }, []);
 
-    // FUNÇÃO QUE RESOLVE O SEU ERRO: Trata se a URL é Nuvem ou Local
     const formatarUrlComprovante = (url) => {
         if (!url) return "#";
-        // Se a url já tiver "http", ela vem do Cloudinary. Retornamos ela pura.
-        if (url.startsWith('http')) {
-            return url;
-        }
-        // Se não tiver "http", é um arquivo antigo que estava no seu PC
+        if (url.startsWith('http')) return url;
         return `http://localhost:8080/uploads/${url}`;
     };
 
-    const handleAprovar = async (id) => {
-        try {
-            setProcessandoId(id);
-            await api.patch(`/admin/pagamentos/${id}/aprovar`);
-            setPendentes(prev => prev.filter(pago => pago.id !== id));
-        } catch (error) {
-            alert("Erro ao aprovar. Verifique a conexão com o servidor.");
-        } finally {
-            setProcessandoId(null);
+   const handleAprovar = async (id) => {
+    try {
+        setProcessandoId(id);
+        await api.patch(`/admin/pagamentos/${id}/aprovar`);
+        setPendentes(prev => prev.filter(pago => pago.id !== id));
+        // Adicione um feedback de sucesso
+        alert("Pagamento aprovado com sucesso!"); 
+    } catch (error) {
+        // Se o erro for 403, pode ser falta de permissão ou sessão expirada
+        if (error.response?.status === 403) {
+            alert("Acesso Negado: Verifique se você está logado como Administrador.");
+        } else {
+            // Puxa a mensagem "Voluntário logado não encontrado" se vier do banco
+            const msg = error.response?.data?.message || "Erro ao aprovar pagamento.";
+            alert(msg);
         }
-    };
-
+    } finally {
+        setProcessandoId(null);
+    }
+};
     const handleRejeitar = async (pago) => {
         const tutor = pago.cadastro?.tutor;
         const pet = pago.cadastro?.pet;
         const whatsappLimpo = (tutor?.whatsapp || "").replace(/\D/g, '');
-
-        if (!whatsappLimpo) {
-            alert("⚠️ Atenção: Este tutor não tem um número de WhatsApp cadastrado.");
-        }
 
         if (!window.confirm(`Deseja REJEITAR e APAGAR os dados do pet ${pet?.nomeAnimal || 'este pet'}?`)) return;
 
@@ -84,9 +83,18 @@ const PagamentosPendentes = () => {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-white">Aprovação de Pagamentos</h1>
-                <p className="text-slate-400 text-sm">Gerencie os comprovantes enviados pela nuvem (Cloudinary).</p>
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-2xl font-bold text-white">Aprovação de Pagamentos</h1>
+                    <p className="text-slate-400 text-sm">Valide as contribuições sociais dinâmicas configuradas no sistema.</p>
+                </div>
+                {/* Badge Informativo do Valor Total em Fila */}
+                <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                    <span className="text-emerald-500 text-xs font-bold uppercase block">Total em Análise</span>
+                    <span className="text-white font-mono font-bold">
+                        R$ {pendentes.reduce((acc, curr) => acc + (curr.valorContribuicao || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
             </div>
 
             <div className="bg-[#1e293b] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
@@ -100,67 +108,74 @@ const PagamentosPendentes = () => {
                         Nenhum pagamento aguardando aprovação.
                     </div>
                 ) : (
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-slate-900/50 border-b border-slate-800">
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase">Data</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase">Pet / Tutor</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase">Valor</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase">Comprovante</th>
-                                <th className="p-4 text-xs font-bold text-slate-400 uppercase text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                            {pendentes.map((pago) => (
-                                <tr key={pago.id} className={`hover:bg-slate-800/30 transition-colors ${processandoId === pago.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                    <td className="p-4 text-slate-400 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <Clock size={14} className="text-orange-500" />
-                                            {pago.cadastro?.dataSolicitacao 
-                                                ? new Date(pago.cadastro.dataSolicitacao).toLocaleDateString('pt-BR') 
-                                                : 'N/A'}
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-white font-bold">{pago.cadastro?.pet?.nomeAnimal || 'Pet'}</span>
-                                            <span className="text-slate-500 text-xs">{pago.cadastro?.tutor?.nome || 'Tutor'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-emerald-400 font-mono font-bold">
-                                        R$ {pago.valorContribuicao?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="p-4">
-                                        {/* AQUI ESTÁ A CORREÇÃO: Usando a função inteligente */}
-                                        <a 
-                                            href={formatarUrlComprovante(pago.comprovanteUrl)} 
-                                            target="_blank" 
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition-colors"
-                                        >
-                                            <Eye size={14} /> Ver Doc
-                                        </a>
-                                    </td>
-                                    <td className="p-4 text-center">
-                                        <div className="flex justify-center gap-3">
-                                            {processandoId === pago.id ? (
-                                                <Loader2 className="animate-spin text-blue-400" size={20} />
-                                            ) : (
-                                                <>
-                                                    <button onClick={() => handleAprovar(pago.id)} className="p-2 bg-emerald-600/20 text-emerald-500 rounded-full hover:bg-emerald-600 hover:text-white transition-all">
-                                                        <CheckCircle size={20} />
-                                                    </button>
-                                                    <button onClick={() => handleRejeitar(pago)} className="p-2 bg-red-600/20 text-red-500 rounded-full hover:bg-red-600 hover:text-white transition-all">
-                                                        <XCircle size={20} />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-slate-900/50 border-b border-slate-800">
+                                    <th className="p-4 text-xs font-bold text-slate-400 uppercase">Data</th>
+                                    <th className="p-4 text-xs font-bold text-slate-400 uppercase">Pet / Tutor</th>
+                                    <th className="p-4 text-xs font-bold text-slate-400 uppercase">Valor da Taxa</th>
+                                    <th className="p-4 text-xs font-bold text-slate-400 uppercase">Comprovante</th>
+                                    <th className="p-4 text-xs font-bold text-slate-400 uppercase text-center">Ações</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                                {pendentes.map((pago) => (
+                                    <tr key={pago.id} className={`hover:bg-slate-800/30 transition-colors ${processandoId === pago.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <td className="p-4 text-slate-400 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={14} className="text-orange-500" />
+                                                {pago.cadastro?.dataSolicitacao 
+                                                    ? new Date(pago.cadastro.dataSolicitacao).toLocaleDateString('pt-BR') 
+                                                    : 'N/A'}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-white font-bold">{pago.cadastro?.pet?.nomeAnimal || 'Pet'}</span>
+                                                <span className="text-slate-500 text-xs">{pago.cadastro?.tutor?.nome || 'Tutor'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-1.5">
+                                                <DollarSign size={14} className="text-emerald-500" />
+                                                <span className="text-emerald-400 font-mono font-bold text-lg">
+                                                    {(pago.valorContribuicao || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Taxa Social</span>
+                                        </td>
+                                        <td className="p-4">
+                                            <a 
+                                                href={formatarUrlComprovante(pago.comprovanteUrl)} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                <Eye size={14} /> Ver Doc
+                                            </a>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <div className="flex justify-center gap-3">
+                                                {processandoId === pago.id ? (
+                                                    <Loader2 className="animate-spin text-blue-400" size={20} />
+                                                ) : (
+                                                    <>
+                                                        <button onClick={() => handleAprovar(pago.id)} title="Aprovar Pagamento" className="p-2 bg-emerald-600/20 text-emerald-500 rounded-full hover:bg-emerald-600 hover:text-white transition-all">
+                                                            <CheckCircle size={20} />
+                                                        </button>
+                                                        <button onClick={() => handleRejeitar(pago)} title="Rejeitar e Excluir" className="p-2 bg-red-600/20 text-red-500 rounded-full hover:bg-red-600 hover:text-white transition-all">
+                                                            <XCircle size={20} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

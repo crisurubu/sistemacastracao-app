@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { 
     LayoutDashboard, PawPrint, BadgeDollarSign, 
     Users, Bell, LogOut, CalendarDays, Menu,
-    Hospital, UserCog // Importado para Gestão de Voluntários
+    Hospital, UserCog, ClipboardList, Settings2 
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
@@ -40,7 +40,7 @@ const AdminSidebar = () => {
         };
     }, [handleLogout]);
 
-    // Busca contagem de alarmes (Apenas para Master/Voluntário)
+    // Busca contagem de alarmes
     useEffect(() => {
         const fetchContagem = async () => {
             if (!user || user.nivelAcesso === 'CLINICA') {
@@ -58,7 +58,7 @@ const AdminSidebar = () => {
         fetchContagem();
     }, [location.pathname, user]);
 
-    // --- CONFIGURAÇÃO DE MENUS ---
+    // --- CONFIGURAÇÃO DE MENUS ORGANIZADA ---
     const menusCompletos = [
         { 
             icon: <LayoutDashboard size={20}/>, 
@@ -72,17 +72,30 @@ const AdminSidebar = () => {
             path: '/admin/pagamentos', 
             roles: ['MASTER', 'VOLUNTARIO'] 
         },
+        // HISTÓRICO DE VIDA / AUDITORIA
+        { 
+            icon: <ClipboardList size={20}/>, 
+            label: 'Extrato Auditoria', 
+            path: '/admin/extrato', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
         { 
             icon: <Hospital size={20}/>, 
             label: 'Clínicas', 
             path: '/admin/clinicas', 
             roles: ['MASTER'] 
         }, 
-        // NOVO MENU: Apenas Master pode gerenciar a equipe
         { 
             icon: <UserCog size={20}/>, 
             label: 'Voluntários', 
             path: '/admin/voluntarios', 
+            roles: ['MASTER'] 
+        },
+        // CONFIGURAÇÃO CRÍTICA (Apenas Master)
+        { 
+            icon: <Settings2 size={20}/>, 
+            label: 'Configurar PIX', 
+            path: '/admin/configuracao-pix', 
             roles: ['MASTER'] 
         },
         { 
@@ -112,13 +125,11 @@ const AdminSidebar = () => {
         },
     ];
 
-    // Filtra os menus baseado no nível de acesso do usuário (MASTER, VOLUNTARIO, CLINICA)
     const menusVisiveis = menusCompletos.filter(item => item.roles.includes(user?.nivelAcesso));
 
     return (
         <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[#0f172a] border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out h-screen sticky top-0`}>
             
-            {/* Header / Toggle */}
             <div className="h-16 flex items-center px-4 border-b border-slate-800 gap-4">
                 <button 
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -135,10 +146,8 @@ const AdminSidebar = () => {
                 )}
             </div>
 
-            {/* Navegação */}
             <nav className="flex-1 p-2 mt-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                 {menusVisiveis.map((item) => {
-                    // Lógica de Ativo: Verifica se o path bate ou se é uma sub-rota (como /clinicas/novo)
                     const isActive = location.pathname === item.path || (item.path !== '/admin/painel' && location.pathname.startsWith(item.path));
                     
                     return (
@@ -172,7 +181,6 @@ const AdminSidebar = () => {
                 })}
             </nav>
 
-            {/* Footer / Logout */}
             <div className="p-2 border-t border-slate-800">
                 <button 
                     onClick={handleLogout}

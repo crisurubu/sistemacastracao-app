@@ -1,11 +1,11 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import React, { useContext } from 'react';
-import PrivateRoute from "../components/PrivateRoute"; // Importe ele daqui
+import PrivateRoute from "../components/PrivateRoute";
 
-
+// ... (imports existentes)
 import CadastroTutor from "../pages/public/CadastroTutor/index";
+import HomePublica from "../pages/public/HomePublica";
 import VerificarGuia from "../pages/public/VerificarGuia/index"; 
-
 import PainelAdmin from "../pages/admin/PainelAdmin";
 import FilaCastracao from "../pages/admin/FilaCastracao";
 import PagamentosPendentes from "../pages/admin/PagamentosPendentes";
@@ -16,25 +16,25 @@ import Agendados from "../pages/admin/Agendados";
 import AdminLayout from "../layouts/AdminLayout";
 import LoginAdmin from "../pages/public/LoginAdmin/index";
 
-
-// NOVOS IMPORTS
 import DashboardClinica from "../pages/admin/DashboardClinica";
 import GestaoClinicas from "../pages/admin/GestaoClinicas";
 import CadastroClinica from "../pages/admin/CadastroClinica";
-import AgendaClinica from "../pages/admin/AgendaClinica"; // Importe a nova página aqui
+import AgendaClinica from "../pages/admin/AgendaClinica"; 
 
-// --- COMPONENTE DE PROTEÇÃO (ATUALIZADO) ---
+// NOVOS IMPORTS DE VOLUNTÁRIOS
+import GestaoVoluntarios from "../pages/admin/GestaoVoluntarios"; // Página com a tabela/lista
+import CadastroVoluntario from "../pages/admin/CadastroVoluntario"; // O formulário que fizemos
+import GerenciarVoluntario from "../pages/admin/GerenciarVoluntario"; // A página de inativar/WhatsApp
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <CadastroTutor />, 
+    element: <HomePublica/>, 
   },
   {
     path: "/verificar",
     element: <VerificarGuia />,
   },
-  // --- ÁREA DA CLÍNICA ---
   {
     path: "/clinica/agenda",
     element: (
@@ -43,7 +43,6 @@ export const router = createBrowserRouter([
         </PrivateRoute>
     )
   },
-  // --- ÁREA ADMINISTRATIVA ---
   {
     path: "/admin",
     children: [
@@ -51,8 +50,6 @@ export const router = createBrowserRouter([
         path: "login",
         element: <LoginAdmin />
       },
-     // --- CENTRAL ÚNICA DA CLÍNICA ---
-      // Agora acessível em: /admin/dashboard-clinica
       {
         path: "dashboard-clinica", 
         element: (
@@ -128,7 +125,6 @@ export const router = createBrowserRouter([
           }
         ]
       },
-      // --- GESTÃO DE CLÍNICAS: SOMENTE MASTER ---
       {
         path: "clinicas",
         children: [
@@ -154,6 +150,44 @@ export const router = createBrowserRouter([
           }
         ]
       },
+
+      // --- GESTÃO DE VOLUNTÁRIOS ORGANIZADA ---
+      {
+        path: "voluntarios",
+        children: [
+          {
+            path: "", // /admin/voluntarios (Lista de todos)
+            element: (
+              <PrivateRoute allowedRoles={['MASTER']}>
+                <AdminLayout>
+                  <GestaoVoluntarios />
+                </AdminLayout>
+              </PrivateRoute>
+            )
+          },
+          {
+            path: "novo", // /admin/voluntarios/novo (Cadastro)
+            element: (
+              <PrivateRoute allowedRoles={['MASTER']}>
+                <AdminLayout>
+                  <CadastroVoluntario />
+                </AdminLayout>
+              </PrivateRoute>
+            )
+          },
+          {
+            path: ":id", // /admin/voluntarios/123 (Gerenciar/Inativar/WhatsApp)
+            element: (
+              <PrivateRoute allowedRoles={['MASTER']}>
+                <AdminLayout>
+                  <GerenciarVoluntario />
+                </AdminLayout>
+              </PrivateRoute>
+            )
+          }
+        ]
+      },
+
       {
         path: "alarmes",
         element: (

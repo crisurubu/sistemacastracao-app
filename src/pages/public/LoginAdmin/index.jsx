@@ -11,34 +11,40 @@ const LoginAdmin = () => {
     const [erro, setErro] = useState('');
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setErro('');
+    e.preventDefault();
+    setErro('');
 
-        try {
-            const response = await fetch('http://localhost:8080/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, senha })
-            });
+    try {
+        const response = await fetch('http://localhost:8080/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, senha })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (response.ok) {
-                login(data.user, data.token);
+        if (response.ok) {
+            login(data.user, data.token);
 
-                // O PULO DO GATO: Direcionar conforme o nível de acesso
-                if (data.user.nivelAcesso === 'CLINICA') {
-                    // Esse é o caminho que está nas suas Rotas
-                    navigate('/admin/dashboard-clinica');
-                } else {
-                    // Esse é o caminho para a ONG (Master/Voluntário)
-                    navigate('/admin/painel');
-                }
+            if (data.user.nivelAcesso === 'CLINICA') {
+                navigate('/admin/dashboard-clinica');
+            } else {
+                navigate('/admin/painel');
             }
-        } catch (err) {
-            setErro('Erro de conexão com o servidor');
+        } else {
+            // TRATAMENTO DE ERRO AQUI:
+            // Se o status for 401, informamos credenciais inválidas. 
+            // Caso contrário, usamos a mensagem vinda do back-end ou uma genérica.
+            if (response.status === 401) {
+                setErro('E-mail ou senha incorretos.');
+            } else {
+                setErro(data.message || 'Erro ao realizar login.');
+            }
         }
-    };
+    } catch (err) {
+        setErro('Erro de conexão com o servidor');
+    }
+};
 
     return (
         /* FUNDO DA TELA - ESCURO TOTAL */

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { 
     LayoutDashboard, PawPrint, BadgeDollarSign, 
     Users, Bell, LogOut, CalendarDays, Menu,
-    Hospital 
+    Hospital, UserCog // Importado para Gestão de Voluntários
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
@@ -40,10 +40,9 @@ const AdminSidebar = () => {
         };
     }, [handleLogout]);
 
-    // --- CORREÇÃO: Busca contagem apenas se tiver permissão ---
+    // Busca contagem de alarmes (Apenas para Master/Voluntário)
     useEffect(() => {
         const fetchContagem = async () => {
-            // Se for CLÍNICA, não tenta acessar /admin/alarmes (evita erro 403)
             if (!user || user.nivelAcesso === 'CLINICA') {
                 setTotalAlarmes(0);
                 return;
@@ -57,25 +56,69 @@ const AdminSidebar = () => {
             }
         };
         fetchContagem();
-    }, [location.pathname, user]); // user como dependência para reavaliar no login/logout
+    }, [location.pathname, user]);
 
-    // --- LÓGICA DE FILTRO DE MENUS ---
+    // --- CONFIGURAÇÃO DE MENUS ---
     const menusCompletos = [
-        { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/admin/painel', roles: ['MASTER', 'VOLUNTARIO'] },
-        { icon: <BadgeDollarSign size={20}/>, label: 'Pagamentos', path: '/admin/pagamentos', roles: ['MASTER', 'VOLUNTARIO'] },
-        { icon: <Hospital size={20}/>, label: 'Clínicas', path: '/admin/clinicas', roles: ['MASTER'] }, 
-        { icon: <PawPrint size={20}/>, label: 'Fila de Castração', path: '/admin/fila', roles: ['MASTER', 'VOLUNTARIO'] },
-        { icon: <CalendarDays size={20}/>, label: 'Agendados', path: '/admin/agendados', roles: ['MASTER', 'VOLUNTARIO'] }, 
-        { icon: <Users size={20}/>, label: 'Tutores', path: '/admin/tutores', roles: ['MASTER', 'VOLUNTARIO'] },
-        { icon: <Bell size={20}/>, label: 'Alarmes', path: '/admin/alarmes', badge: totalAlarmes, roles: ['MASTER', 'VOLUNTARIO'] },
+        { 
+            icon: <LayoutDashboard size={20}/>, 
+            label: 'Dashboard', 
+            path: '/admin/painel', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
+        { 
+            icon: <BadgeDollarSign size={20}/>, 
+            label: 'Pagamentos', 
+            path: '/admin/pagamentos', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
+        { 
+            icon: <Hospital size={20}/>, 
+            label: 'Clínicas', 
+            path: '/admin/clinicas', 
+            roles: ['MASTER'] 
+        }, 
+        // NOVO MENU: Apenas Master pode gerenciar a equipe
+        { 
+            icon: <UserCog size={20}/>, 
+            label: 'Voluntários', 
+            path: '/admin/voluntarios', 
+            roles: ['MASTER'] 
+        },
+        { 
+            icon: <PawPrint size={20}/>, 
+            label: 'Fila de Castração', 
+            path: '/admin/fila', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
+        { 
+            icon: <CalendarDays size={20}/>, 
+            label: 'Agendados', 
+            path: '/admin/agendados', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        }, 
+        { 
+            icon: <Users size={20}/>, 
+            label: 'Tutores', 
+            path: '/admin/tutores', 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
+        { 
+            icon: <Bell size={20}/>, 
+            label: 'Alarmes', 
+            path: '/admin/alarmes', 
+            badge: totalAlarmes, 
+            roles: ['MASTER', 'VOLUNTARIO'] 
+        },
     ];
 
-    // Filtra os menus baseado no nível de acesso do usuário
+    // Filtra os menus baseado no nível de acesso do usuário (MASTER, VOLUNTARIO, CLINICA)
     const menusVisiveis = menusCompletos.filter(item => item.roles.includes(user?.nivelAcesso));
 
     return (
         <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[#0f172a] border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out h-screen sticky top-0`}>
             
+            {/* Header / Toggle */}
             <div className="h-16 flex items-center px-4 border-b border-slate-800 gap-4">
                 <button 
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -92,9 +135,12 @@ const AdminSidebar = () => {
                 )}
             </div>
 
+            {/* Navegação */}
             <nav className="flex-1 p-2 mt-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                 {menusVisiveis.map((item) => {
-                    const isActive = location.pathname === item.path || (item.path === '/admin/clinicas' && location.pathname.startsWith('/admin/clinicas'));
+                    // Lógica de Ativo: Verifica se o path bate ou se é uma sub-rota (como /clinicas/novo)
+                    const isActive = location.pathname === item.path || (item.path !== '/admin/painel' && location.pathname.startsWith(item.path));
+                    
                     return (
                         <button 
                             key={item.label}
@@ -126,6 +172,7 @@ const AdminSidebar = () => {
                 })}
             </nav>
 
+            {/* Footer / Logout */}
             <div className="p-2 border-t border-slate-800">
                 <button 
                     onClick={handleLogout}

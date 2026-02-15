@@ -20,7 +20,8 @@ const LoginAdmin = () => {
         };
 
         try {
-            const response = await fetch('/auth/login', {
+            // AJUSTE AQUI: Trocado localhost pela URL da API no Render
+            const response = await fetch('https://sistema-castracao-api.onrender.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginData)

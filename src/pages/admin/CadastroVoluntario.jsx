@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Lock, RefreshCw, UserPlus, Edit3 } from 'lucide-react
 
 const CadastroVoluntario = () => {
     const navigate = useNavigate();
-    const location = useLocation(); // Para capturar o estado vindo de outra tela
+    const location = useLocation(); 
     
     const estadoInicial = {
         nome: '',
@@ -41,7 +41,6 @@ const CadastroVoluntario = () => {
     const maskWhatsApp = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
     const maskCEP = (v) => v.replace(/\D/g, "").replace(/^(\d{5})(\d)/, "$1-$2").replace(/(-\d{3})\d+?$/, "$1");
 
-    // FUNÇÃO DE VALIDAÇÃO (Extraída para ser usada no useEffect)
     const validarCpfESeguir = useCallback(async (cpfManual) => {
         const cpfParaValidar = cpfManual || formData.cpf;
         const cpfLimpo = cpfParaValidar.replace(/\D/g, '');
@@ -53,6 +52,7 @@ const CadastroVoluntario = () => {
 
         setLoading(true);
         setErro("");
+        setMensagemInfo(""); // Limpa info anterior
 
         try {
             const response = await api.get(`/admin/voluntarios/verificar/${cpfLimpo}`);
@@ -71,8 +71,10 @@ const CadastroVoluntario = () => {
                     }
                 });
                 setMensagemInfo("ℹ️ Modo de edição ativado para este voluntário.");
+                setPasso(2); // CORREÇÃO: Força o avanço para o passo 2 na edição
             } else {
                 setIsEdit(false);
+                // Se for novo, valida se tem nome antes de seguir
                 if (formData.nome.length > 3 || (cpfManual && !response.data.existe)) {
                     setPasso(2);
                 } else {
@@ -86,12 +88,10 @@ const CadastroVoluntario = () => {
         }
     }, [formData.cpf, formData.nome]);
 
-    // EFEITO PARA CAPTURAR CPF DA TELA DE GERENCIAMENTO
     useEffect(() => {
         if (location.state?.cpfPreenchido) {
             const cpfFormatado = maskCPF(location.state.cpfPreenchido);
             setFormData(prev => ({ ...prev, cpf: cpfFormatado }));
-            // Dispara a busca automaticamente
             validarCpfESeguir(location.state.cpfPreenchido);
         }
     }, [location.state, validarCpfESeguir]);
@@ -169,7 +169,7 @@ const CadastroVoluntario = () => {
                 if (!data.erro) {
                     setFormData(prev => ({
                         ...prev,
-                        logradouro: data.logradouro, bairro: data.bairro, cidade: data.localidade, estado: data.uf
+                        logradouro: data.logradouro, bairro: data.bairro, city: data.localidade, estado: data.uf
                     }));
                 }
             } catch (err) { }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom'; // Importado useLocation
 import api from '../../services/api';
-import { ArrowLeft, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Check, RefreshCw, Loader2 } from 'lucide-react';
 
 const CadastroClinica = () => {
     const navigate = useNavigate();
@@ -196,6 +196,7 @@ const CadastroClinica = () => {
             </button>
 
             <div className="max-w-md mx-auto bg-slate-900 p-8 rounded-3xl border border-slate-800 relative shadow-2xl">
+                {/* Loader centralizado sobre o formulário */}
                 {loading && (
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center rounded-3xl">
                         <RefreshCw className="animate-spin text-blue-500" size={32} />
@@ -230,8 +231,12 @@ const CadastroClinica = () => {
                             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nome da Instituição</label>
                             <input className={inputStyle} name="nome" placeholder="Ex: Clínica Veterinária Tatuí" onChange={handleChange} value={formData.nome} />
                         </div>
-                        <button onClick={verificarCnpjESeguir} className="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded-xl font-black uppercase tracking-widest mt-2 transition-all shadow-lg shadow-blue-900/20">
-                            {isEdit ? "Confirmar e Seguir" : "Validar e Seguir"}
+                        <button 
+                            onClick={verificarCnpjESeguir} 
+                            disabled={loading}
+                            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 p-4 rounded-xl font-black uppercase tracking-widest mt-2 transition-all shadow-lg shadow-blue-900/20 flex justify-center items-center gap-2"
+                        >
+                            {loading ? <Loader2 className="animate-spin" size={20} /> : (isEdit ? "Confirmar e Seguir" : "Validar e Seguir")}
                         </button>
                     </div>
                 )}
@@ -275,7 +280,13 @@ const CadastroClinica = () => {
                         </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={() => setPasso(2)} className="w-1/2 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl font-bold uppercase text-xs transition-colors">Voltar</button>
-                            <button onClick={handleSubmit} className="w-1/2 bg-blue-600 hover:bg-blue-500 p-4 rounded-xl font-black uppercase text-xs italic tracking-widest transition-all shadow-lg shadow-blue-900/20">Finalizar</button>
+                            <button 
+                                onClick={handleSubmit} 
+                                disabled={loading}
+                                className="w-1/2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 p-4 rounded-xl font-black uppercase text-xs italic tracking-widest transition-all shadow-lg shadow-blue-900/20 flex justify-center items-center gap-2"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={18} /> : "Finalizar"}
+                            </button>
                         </div>
                     </div>
                 )}

@@ -1,6 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
+// Importamos os ícones do Lucide (comuns em projetos React modernos)
+// Se não tiver instalado, você pode usar emojis ou SVGs simples.
+import { Eye, EyeOff } from 'lucide-react';
 
 const LoginAdmin = () => {
     const { login } = useContext(AuthContext);
@@ -9,10 +12,14 @@ const LoginAdmin = () => {
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState('');
+    const [loading, setLoading] = useState(false);
+    // NOVO ESTADO PARA CONTROLAR A VISIBILIDADE DA SENHA
+    const [mostrarSenha, setMostrarSenha] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErro('');
+        setLoading(true);
 
         const loginData = {
             email: email.trim(),
@@ -20,7 +27,6 @@ const LoginAdmin = () => {
         };
 
         try {
-            // AJUSTE AQUI: Trocado localhost pela URL da API no Render
             const response = await fetch('https://sistema-castracao-api.onrender.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -42,9 +48,11 @@ const LoginAdmin = () => {
                 } else {
                     setErro(data.erro || 'Erro ao realizar login.');
                 }
+                setLoading(false);
             }
         } catch (err) {
             setErro('Erro de conexão com o servidor');
+            setLoading(false);
         }
     };
 
@@ -77,21 +85,49 @@ const LoginAdmin = () => {
 
                     <div className="flex flex-col">
                         <label className="mb-2 text-sm font-semibold text-slate-300">Senha</label>
-                        <input
-                            type="password"
-                            value={senha}
-                            onChange={(e) => setSenha(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            required
-                        />
+                        {/* CONTAINER RELATIVO PARA POSICIONAR O OLHO */}
+                        <div className="relative">
+                            <input
+                                type={mostrarSenha ? "text" : "password"}
+                                value={senha}
+                                onChange={(e) => setSenha(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                required
+                            />
+                            {/* BOTÃO DO OLHO */}
+                            <button
+                                type="button"
+                                onClick={() => setMostrarSenha(!mostrarSenha)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                                tabIndex="-1" // Evita que o tab pare no olho antes de ir para o botão de login
+                            >
+                                {mostrarSenha ? (
+                                    <EyeOff size={20} />
+                                ) : (
+                                    <Eye size={20} />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20"
+                        disabled={loading}
+                        className={`w-full rounded-lg py-3 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${
+                            loading 
+                            ? 'bg-blue-800 cursor-not-allowed opacity-80' 
+                            : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20'
+                        }`}
                     >
-                        ENTRAR NO SISTEMA
+                        {loading ? (
+                            <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                AUTENTICANDO...
+                            </>
+                        ) : (
+                            'ENTRAR NO SISTEMA'
+                        )}
                     </button>
                 </form>
             </div>

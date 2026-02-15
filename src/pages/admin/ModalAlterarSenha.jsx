@@ -96,15 +96,23 @@ const ModalAlterarSenha = ({ isOpen, onClose }) => {
                     )}
 
                     <button
+                        type="submit"
                         disabled={loading}
                         className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-black py-5 rounded-[2rem] transition-all shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] flex justify-center items-center gap-2 uppercase italic tracking-tighter"
                     >
-                        {loading ? <Loader2 className="animate-spin" /> : 'Confirmar Alteração'}
+                        {loading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={20} />
+                                <span>Processando...</span>
+                            </>
+                        ) : (
+                            'Confirmar Alteração'
+                        )}
                     </button>
                     {/* NOTA DE AJUDA */}
                     <p className="mt-8 text-[9px] text-slate-600 text-center uppercase tracking-widest leading-relaxed">
                         Esqueceu sua senha atual? <br />
-                        Entre em contato com a <span className="text-slate-400 font-bold">Sistema Castração ONG</span> para resetar sua conta.
+                        Entre em contato com a <span className="text-slate-400 font-bold">Sistema Castracao ong</span> para resetar sua conta.
                     </p>
                 </form>
             </div>
@@ -113,9 +121,3 @@ const ModalAlterarSenha = ({ isOpen, onClose }) => {
 };
 
 export default ModalAlterarSenha;
-
-// RESUMO DO CÓDIGO:
-// 1. UI Consistente: Utiliza o padrão de design Dark/Emerald e Lucide Icons do projeto da ONG.
-// 2. Validação local: Compara a nova senha com a confirmação antes de disparar o loader.
-// 3. Integração Backend: Realiza uma requisição PUT para o endpoint protegido da clínica.
-// 4. Feedback Visual: Exibe alertas animados de erro ou sucesso e limpa o formulário ao fechar.

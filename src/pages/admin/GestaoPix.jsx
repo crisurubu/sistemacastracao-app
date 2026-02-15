@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Key, Save, History, AlertTriangle, Landmark, DollarSign } from 'lucide-react';
+import { Key, Save, History, AlertTriangle, Landmark, DollarSign, Loader2 } from 'lucide-react';
 
 const GestaoPix = () => {
     const [pixAtivo, setPixAtivo] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [salvando, setSalvando] = useState(false); // NOVO ESTADO PARA O BOTÃO
     const [novaChave, setNovaChave] = useState({
         chave: '', 
         tipoChave: 'E-MAIL', 
@@ -32,6 +33,8 @@ const GestaoPix = () => {
         
         if (!window.confirm("Atenção: Isso mudará o destino e o valor das doações. Confirmar?")) return;
 
+        setSalvando(true); // ATIVA O LOADER
+
         try {
             await api.post('/admin/configuracao-pix/cadastrar', novaChave);
             alert("Configuração atualizada com sucesso!");
@@ -43,6 +46,8 @@ const GestaoPix = () => {
             });
         } catch (err) {
             alert("Erro ao salvar. Verifique se preencheu Agência e Conta corretamente.");
+        } finally {
+            setSalvando(false); // DESATIVA O LOADER
         }
     };
 
@@ -152,9 +157,19 @@ const GestaoPix = () => {
 
                         <button 
                             type="submit" 
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
+                            disabled={salvando}
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-70 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
                         >
-                            <Save size={18} /> Ativar Nova Configuração
+                            {salvando ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={18} />
+                                    <span>Salvando...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Save size={18} /> Ativar Nova Configuração
+                                </>
+                            )}
                         </button>
                     </form>
                 </div>

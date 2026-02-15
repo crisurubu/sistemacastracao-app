@@ -10,6 +10,9 @@ const CadastroTutor = () => {
     const [loadingCpf, setLoadingCpf] = useState(false);
     const [cpfVerificado, setCpfVerificado] = useState(false);
     
+    // NOVO ESTADO PARA BLOQUEIO GLOBAL NO ENVIO FINAL
+    const [isEnviando, setIsEnviando] = useState(false);
+    
     // ESTADO ATUALIZADO COM OS NOVOS CAMPOS DO BANCO
     const [pixAtivo, setPixAtivo] = useState({
         chave: 'sistemacastracao@gmail.com',
@@ -164,6 +167,10 @@ const CadastroTutor = () => {
             alert("⚠️ Por favor, anexe o comprovante do PIX."); 
             return; 
         }
+
+        // ATIVA O CARREGAMENTO ANTES DE ENVIAR
+        setIsEnviando(true);
+
         const formData = new FormData();
         formData.append('arquivo', arquivo);
         const jsonDados = JSON.stringify(dados);
@@ -177,13 +184,49 @@ const CadastroTutor = () => {
         } catch (error) {
             console.error("Erro no processo:", error);
             alert('❌ Erro ao enviar. Verifique sua conexão ou tente novamente.');
+            setIsEnviando(false); // DESATIVA SE DER ERRO PARA ELE TENTAR DE NOVO
         }
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
+            
+            {/* OVERLAY DE CARREGAMENTO CIRÚRGICO */}
+            {isEnviando && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <div className="spinner-final" style={{
+                        width: '50px',
+                        height: '50px',
+                        border: '5px solid #10b981',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                    }}></div>
+                    <h3 style={{ color: '#10b981', marginTop: '20px', fontWeight: 'bold' }}>Enviando Inscrição...</h3>
+                    <p style={{ color: '#fff', fontSize: '0.9rem', marginTop: '10px' }}>Por favor, não feche esta página.</p>
+                </div>
+            )}
+
             <NavbarPublica />
-            <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
+            <main style={{ 
+                flex: 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '20px 0',
+                filter: isEnviando ? 'blur(2px)' : 'none',
+                pointerEvents: isEnviando ? 'none' : 'auto'
+            }}>
                 <div className="cadastro-container">
                     <div className="cadastro-card">
                         <div className="info-side">
@@ -342,7 +385,7 @@ const CadastroTutor = () => {
                                         </div>
                                     </div>
                                     
-                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
+                                    <label style={{ block: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
                                         Anexe o comprovante (Foto ou PDF):
                                     </label>
                                     <input type="file" onChange={(e) => setArquivo(e.target.files[0])} className="input-field" accept="image/*,.pdf" required />
@@ -358,6 +401,13 @@ const CadastroTutor = () => {
                 </div>
             </main>
             <Footer />
+            
+            {/* CSS INLINE PARA A ANIMAÇÃO DO SPINNER SEM PRECISAR DE ARQUIVO EXTERNO */}
+            <style>{`
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 };

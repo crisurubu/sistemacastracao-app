@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Clock, Search, RefreshCcw, FileText, Loader2, X, Hash, User, PawPrint, CheckCircle } from 'lucide-react';
+import { Calendar, MapPin, Search, RefreshCcw, FileText, Loader2, X, User, PawPrint, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
 import { gerarGuiaCastracao } from '../../utils/GeradorPDF';
 
 const Agendados = () => {
     const [agendados, setAgendados] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false); // Loader para o botão do modal
     const [busca, setBusca] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedAgendamento, setSelectedAgendamento] = useState(null);
@@ -36,6 +37,12 @@ const Agendados = () => {
     };
 
     const handleReagendar = async () => {
+        if (!novosDados.data || !novosDados.hora) {
+            alert("Por favor, preencha data e hora.");
+            return;
+        }
+
+        setActionLoading(true);
         try {
             const payload = {
                 agendamentoId: selectedAgendamento.id,
@@ -46,7 +53,11 @@ const Agendados = () => {
             setAgendados(agendados.map(a => a.id === selectedAgendamento.id ? response.data : a));
             setShowModal(false);
             alert("Sucesso! Novo e-mail de agendamento enviado.");
-        } catch (error) { alert("Erro ao reagendar."); }
+        } catch (error) { 
+            alert(error.response?.data?.message || "Erro ao reagendar."); 
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     const filtrarAgendados = agendados.filter(a =>
@@ -57,7 +68,7 @@ const Agendados = () => {
     if (loading) return (
         <div className="flex h-screen flex-col items-center justify-center bg-slate-950">
             <Loader2 className="animate-spin text-emerald-500 mb-4" size={40} />
-            <p className="text-slate-400 font-medium">Carregando cronograma de cirurgias...</p>
+            <p className="text-slate-400 font-medium italic uppercase tracking-widest text-xs">Sincronizando Cronograma...</p>
         </div>
     );
 
@@ -66,8 +77,10 @@ const Agendados = () => {
             {/* Cabeçalho */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Cronograma de <span className="text-emerald-500">Procedimentos</span></h1>
-                    <p className="text-slate-400">Gerencie as castrações confirmadas e reagendamentos.</p>
+                    <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">
+                        Cronograma de <span className="text-emerald-500">Procedimentos</span>
+                    </h1>
+                    <p className="text-slate-400 text-sm">Gerencie as castrações confirmadas e reagendamentos.</p>
                 </div>
                 <div className="relative group w-full md:w-80">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={20} />
@@ -114,18 +127,20 @@ const Agendados = () => {
                             </div>
                             <div className="flex items-center gap-3 text-slate-300">
                                 <Calendar size={16} className="text-emerald-500" />
-                                <span className="text-sm font-medium">{new Date(item.dataHora).toLocaleDateString('pt-BR')} às {new Date(item.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="text-sm font-medium">
+                                    {new Date(item.dataHora).toLocaleDateString('pt-BR')} às {new Date(item.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                             </div>
                             <div className="flex items-center gap-3 text-slate-300">
                                 <MapPin size={16} className="text-emerald-500" />
-                                <span className="text-sm font-medium truncate">{item.local || "Clínica Parceira"}</span>
+                                <span className="text-sm font-medium truncate">{item.clinica?.nome || "Clínica Parceira"}</span>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* MODAL DE REAGENDAMENTO PREMIUM */}
+            {/* MODAL DE REAGENDAMENTO */}
             {showModal && (
                 <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-slate-900 border border-slate-700 p-8 rounded-[3rem] w-full max-w-md shadow-2xl relative">
@@ -137,26 +152,26 @@ const Agendados = () => {
                             <div className="mx-auto w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 mb-4 border border-amber-500/20">
                                 <RefreshCcw size={32} />
                             </div>
-                            <h2 className="text-2xl font-black text-white italic">Reagendamento</h2>
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Reagendamento</h2>
                             <p className="text-slate-400 text-sm mt-1">Alterando data para: <span className="text-white font-bold">{selectedAgendamento?.cadastro.pet.nomeAnimal}</span></p>
                         </div>
 
                         <div className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Nova Data</label>
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1 italic">Nova Data</label>
                                     <input type="date" className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-white focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                                         onChange={(e) => setNovosDados({ ...novosDados, data: e.target.value })} />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Novo Horário</label>
+                                    <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1 italic">Novo Horário</label>
                                     <input type="time" className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-white focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                                         onChange={(e) => setNovosDados({ ...novosDados, hora: e.target.value })} />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Clínica Executora</label>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1 italic">Clínica Executora</label>
                                 <select 
                                     value={novosDados.clinicaId}
                                     className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-white focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
@@ -167,9 +182,22 @@ const Agendados = () => {
                                 </select>
                             </div>
 
-                            <button onClick={handleReagendar} className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black py-4 rounded-2xl mt-4 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-3">
-                                <CheckCircle size={20} />
-                                ATUALIZAR E NOTIFICAR TUTOR
+                            <button 
+                                onClick={handleReagendar} 
+                                disabled={actionLoading}
+                                className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl mt-4 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-3 uppercase italic"
+                            >
+                                {actionLoading ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={20} />
+                                        <span>Processando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle size={20} />
+                                        <span>Atualizar e Notificar Tutor</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+// IMPORTANTE: Importando a instância centralizada da API que você criou
+import api from "../../services/api"; 
 
 const HistoricoTutor = () => {
     const { id } = useParams();
@@ -10,13 +12,11 @@ const HistoricoTutor = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch(`http://localhost:8080/api/cadastros/tutor/${id}`)
-            .then(res => {
-                if (!res.ok) throw new Error("Erro ao acessar histórico no servidor");
-                return res.json();
-            })
-            .then(data => {
-                // Console log removido conforme solicitado para produção
+        // MUDANÇA: Usando 'api.get' do Axios em vez de 'fetch'
+        // A URL base e o Bearer Token já estão configurados no seu arquivo api.js
+        api.get(`/cadastros/tutor/${id}`)
+            .then(response => {
+                const data = response.data;
                 if (data && data.length > 0) {
                     setTutor(data[0].tutor);
                     setHistorico(data);
@@ -24,6 +24,7 @@ const HistoricoTutor = () => {
                 setLoading(false);
             })
             .catch(err => {
+                // Tratamento silencioso para produção conforme solicitado
                 setLoading(false);
             });
     }, [id]);
@@ -129,7 +130,3 @@ const HistoricoTutor = () => {
 
 export default HistoricoTutor;
 
-// RESUMO DO CÓDIGO:
-// 1. Limpeza de Log: Removidos console.logs e tratamentos de erro ruidosos para manter o console do navegador limpo.
-// 2. Alarme de Data Concluída: Agora exibe a data real de conclusão (vinda do pagamento) quando o status é CONCLUIDO.
-// 3. UI de Auditoria: Mantida a lógica de destaque para medicamentos (crítico para histórico de vida da ONG).

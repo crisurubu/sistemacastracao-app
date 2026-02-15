@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { CheckCircle, Clock, User, PawPrint, MessageCircle } from 'lucide-react'; // Trocado Phone por MessageCircle (WhatsApp)
+// IMPORTANTE: Trocamos o axios puro pela sua instância configurada
+import api from "../../services/api"; 
+import { CheckCircle, Clock, User, PawPrint, MessageCircle } from 'lucide-react';
 
 const AgendaClinica = () => {
     const [agendamentos, setAgendamentos] = useState([]);
@@ -9,11 +10,9 @@ const AgendaClinica = () => {
 
     const carregarAgenda = async () => {
         try {
-            const token = localStorage.getItem('token');
-            // Rota específica da área da clínica que criamos
-            const response = await axios.get('http://localhost:8080/api/clinica/meus-agendamentos', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // MUDANÇA: 'api.get' já cuida da URL do Render e do Token automaticamente
+            const response = await api.get('/clinica/meus-agendamentos');
+            
             setAgendamentos(response.data.agendamentos);
             setClinicaInfo(response.data.clinica);
         } catch (error) {
@@ -31,11 +30,9 @@ const AgendaClinica = () => {
         if (!window.confirm("Confirmar a realização deste procedimento?")) return;
 
         try {
-            const token = localStorage.getItem('token');
-            // CORREÇÃO: Apontando para a rota de conclusão da área da clínica
-            await axios.patch(`http://localhost:8080/api/clinica/concluir-procedimento/${id}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // MUDANÇA: Removido localhost e headers manuais. 
+            // O interceptor do api.js injeta o Bearer Token sozinho.
+            await api.patch(`/clinica/concluir-procedimento/${id}`, {});
             
             alert("Procedimento registrado com sucesso!");
             carregarAgenda(); 
@@ -57,7 +54,9 @@ const AgendaClinica = () => {
                 <div className="flex items-center gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                     <div className="text-right">
                         <p className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Selo de Parceiro</p>
-                        <p className="text-blue-400 font-bold">{clinicaInfo?.totalCastracoes >= 100 ? 'OURO' : clinicaInfo?.totalCastracoes >= 50 ? 'PRATA' : 'BRONZE'}</p>
+                        <p className="text-blue-400 font-bold">
+                            {clinicaInfo?.totalCastracoes >= 100 ? 'OURO' : clinicaInfo?.totalCastracoes >= 50 ? 'PRATA' : 'BRONZE'}
+                        </p>
                     </div>
                     <div className="text-3xl">
                         {clinicaInfo?.totalCastracoes >= 100 ? '🥇' : clinicaInfo?.totalCastracoes >= 50 ? '🥈' : '🥉'}
@@ -82,7 +81,6 @@ const AgendaClinica = () => {
                                     <h3 className="text-lg font-bold text-white uppercase">{ag.nomePet}</h3>
                                     <div className="flex flex-wrap gap-3 mt-1">
                                         <span className="flex items-center gap-1 text-sm text-slate-400"><User size={14}/> {ag.nomeTutor}</span>
-                                        {/* CORREÇÃO: Usando whatsappTutor que vem do Backend */}
                                         <span className="flex items-center gap-1 text-sm text-slate-400"><MessageCircle size={14} className="text-emerald-500"/> {ag.whatsappTutor}</span>
                                         <span className="flex items-center gap-1 text-sm text-orange-400 font-medium"><Clock size={14}/> {ag.horario}</span>
                                     </div>

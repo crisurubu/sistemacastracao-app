@@ -28,7 +28,11 @@ const PagamentosPendentes = () => {
     const formatarUrlComprovante = (url) => {
         if (!url) return "#";
         if (url.startsWith('http')) return url;
-        return `http://localhost:8080/uploads/${url}`;
+        // CORREÇÃO: Removido localhost. Agora usa a base da API que está no Render.
+        // O api.defaults.baseURL já contém 'https://sistema-castracao-api.onrender.com/api'
+        // Precisamos apenas remover o '/api' do final para acessar a pasta /uploads
+        const baseUrl = api.defaults.baseURL.replace('/api', '');
+        return `${baseUrl}/uploads/${url}`;
     };
 
    const handleAprovar = async (id) => {

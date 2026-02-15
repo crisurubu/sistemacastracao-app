@@ -1,8 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
-// 1. IMPORTANTE: Importar a nossa configuração da API
-import api from '../../../services/api'; 
 
 const LoginAdmin = () => {
     const { login } = useContext(AuthContext);
@@ -22,38 +20,80 @@ const LoginAdmin = () => {
         };
 
         try {
-            // 2. MUDANÇA AQUI: Trocamos o 'fetch' pelo 'api.post'
-            // O axios já sabe que deve completar com a URL do Render
-            const response = await api.post('/auth/login', loginData);
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginData)
+            });
 
-            // 3. O Axios coloca os dados direto em .data
-            const data = response.data;
+            const data = await response.json();
 
-            login(data.user, data.token);
-            
-            if (data.user.nivelAcesso === 'CLINICA') {
-                navigate('/admin/dashboard-clinica');
+            if (response.ok) {
+                login(data.user, data.token);
+                if (data.user.nivelAcesso === 'CLINICA') {
+                    navigate('/admin/dashboard-clinica');
+                } else {
+                    navigate('/admin/painel');
+                }
             } else {
-                navigate('/admin/painel');
+                if (response.status === 401) {
+                    setErro('E-mail ou senha incorretos.');
+                } else {
+                    setErro(data.erro || 'Erro ao realizar login.');
+                }
             }
-            
         } catch (err) {
-            // 4. Tratamento de erro para o Axios
-            if (err.response && err.response.status === 401) {
-                setErro('E-mail ou senha incorretos.');
-            } else if (err.response && err.response.status === 403) {
-                setErro('Acesso negado. Verifique se sua conta está ativa.');
-            } else {
-                setErro('Erro de conexão com o servidor da ONG.');
-            }
+            setErro('Erro de conexão com o servidor');
         }
     };
 
-    // ... restante do seu código (o visual do formulário continua igual)
     return (
-        /* Seu código de retorno visual aqui */
         <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 p-4">
-            {/* O conteúdo do seu JSX é o mesmo */}
+            <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8 shadow-2xl border border-slate-800">
+                <div className="mb-8 text-center">
+                    <h2 className="text-3xl font-bold text-white">Sistema Castração</h2>
+                    <p className="mt-2 text-blue-400 font-medium uppercase text-xs tracking-widest">Área Administrativa</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {erro && (
+                        <div className="rounded-lg bg-red-500/10 p-3 text-center text-sm text-red-500 border border-red-500/50">
+                            {erro}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col">
+                        <label className="mb-2 text-sm font-semibold text-slate-300">E-mail</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="sistemacastracao@gmail.com"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div className="flex flex-col">
+                        <label className="mb-2 text-sm font-semibold text-slate-300">Senha</label>
+                        <input
+                            type="password"
+                            value={senha}
+                            onChange={(e) => setSenha(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20"
+                    >
+                        ENTRAR NO SISTEMA
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { ArrowLeft, Check, RefreshCw, UserPlus, Edit3, MessageCircle, Loader2 } from 'lucide-react';
 
-// --- SERVICE DE MENSAGENS ---
+// --- SERVICE DE MENSAGENS (AJUSTADO PARA EVITAR UNDEFINED) ---
 const BASE_URL_LOGIN = "https://sistema-castracao-front.onrender.com";
 
 const messagesService = {
@@ -12,14 +12,23 @@ const messagesService = {
         const saudacao = `Olá *${dados.nome}*! 👋`;
         const rodape = `\n\n_Equipe Sistema Castração_`;
 
+        // EXTRAÇÃO INTELIGENTE: Busca na raiz ou dentro de administrador
+        const emailFinal = dados.email || (dados.administrador && dados.administrador.email);
+        const senhaFinal = dados.senha || (dados.administrador && dados.administrador.senha);
+
         if (tipoAcao === 'CADASTRO_NOVO') {
-            texto = `${saudacao}\n\nBem-vindo(a) à equipe de voluntários da *Sistema Castracao ong*! Seu acesso está pronto.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *SENHA:* ${dados.senha}\n🌐 *LINK:* ${BASE_URL_LOGIN}\n\n_Vamos juntos fazer a diferença!_${rodape}`;
-        } else if (tipoAcao === 'ATUALIZACAO' && mudouSenha) {
-            texto = `${saudacao}\n\nSeus dados de acesso na *Sistema Castracao ong* foram atualizados.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *NOVA SENHA:* ${dados.senha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
+            texto = `${saudacao}\n\nBem-vindo(a) à equipe de voluntários da *Sistema Castracao ong*! Seu acesso está pronto.\n\n📧 *LOGIN:* ${emailFinal}\n🔑 *SENHA:* ${senhaFinal}\n🌐 *LINK:* ${BASE_URL_LOGIN}\n\n_Vamos juntos fazer a diferença!_${rodape}`;
+        } else if (tipoAcao === 'ATUALIZACAO') {
+            const infoSenha = mudouSenha 
+                ? `🔑 *NOVA SENHA:* ${senhaFinal}` 
+                : `🔑 *SENHA:* (Mantida a anterior)`;
+
+            texto = `${saudacao}\n\nSeus dados de acesso na *Sistema Castracao ong* foram atualizados.\n\n📧 *LOGIN:* ${emailFinal}\n${infoSenha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
         }
         
         if (!texto) return null;
-        return `https://wa.me/55${dados.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+        const foneLimpo = (dados.whatsapp || "").replace(/\D/g, '');
+        return `https://wa.me/55${foneLimpo}?text=${encodeURIComponent(texto)}`;
     }
 };
 
@@ -76,7 +85,7 @@ const CadastroVoluntario = () => {
                     cpf: maskCPF(v.cpf),
                     whatsapp: maskWhatsApp(v.whatsapp || ''),
                     cep: maskCEP(v.cep || ''),
-                    administrador: { email: (v.administrador?.email || '').toLowerCase(), senha: '' }
+                    administrador: { email: (v.administrador?.email || v.email || '').toLowerCase(), senha: '' }
                 });
                 setMensagemInfo("ℹ️ Voluntário encontrado! Modo de edição ativado.");
             }
@@ -94,7 +103,7 @@ const CadastroVoluntario = () => {
                 cpf: maskCPF(v.cpf),
                 whatsapp: maskWhatsApp(v.whatsapp || ''),
                 cep: maskCEP(v.cep || ''),
-                administrador: { email: (v.administrador?.email || '').toLowerCase(), senha: '' }
+                administrador: { email: (v.administrador?.email || v.email || '').toLowerCase(), senha: '' }
             });
         } else if (!isEdit && !formData.administrador.senha) {
             setFormData(prev => ({
@@ -147,8 +156,9 @@ const CadastroVoluntario = () => {
 
             await api.post('/admin/voluntarios', payload);
 
+            // Passamos o formData completo para que o serviço ache o objeto administrador
             const link = messagesService.gerarLinkWhatsApp(
-                { ...payload, senha: formData.administrador.senha },
+                formData,
                 isEdit ? 'ATUALIZACAO' : 'CADASTRO_NOVO',
                 formData.administrador.senha.length > 0
             );
@@ -180,7 +190,7 @@ const CadastroVoluntario = () => {
                         {linkWhatsapp && (
                             <a href={linkWhatsapp} target="_blank" rel="noreferrer" 
                                className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black no-underline shadow-lg shadow-emerald-900/20">
-                                <MessageCircle size={24} /> ENVIAR WHATSAPP
+                                 <MessageCircle size={24} /> ENVIAR WHATSAPP
                             </a>
                         )}
                         <button onClick={() => navigate('/admin/voluntarios')} className="mt-8 text-slate-500 hover:text-white font-bold text-xs uppercase tracking-widest transition-colors">Concluir</button>
@@ -256,8 +266,7 @@ export default CadastroVoluntario;
 
 /**
  * RESUMO DO CÓDIGO:
- * - Fluxo de Cadastro Verde (Emerald): Identidade visual própria para voluntários.
- * - Integração ViaCEP: Busca automática de logradouro e bairro para agilizar o preenchimento.
- * - Segurança de CPF: Validação automática que alterna entre criação e edição de voluntário.
- * - Mensagens de Boas-vindas: Gera link de WhatsApp formatado com credenciais de acesso.
+ * - Correção de Undefined no WhatsApp: O messagesService local foi atualizado com busca inteligente para e-mail e senha.
+ * - Sincronização de Dados: O handleSubmit agora envia o estado `formData` completo para o gerador de link.
+ * - Consistência na Edição: Adicionada verificação de e-mail na raiz ou em administrador para garantir o preenchimento no modo edição.
  */

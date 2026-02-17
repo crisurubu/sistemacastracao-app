@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { ArrowLeft, Check, RefreshCw, Loader2, MessageCircle } from 'lucide-react';
 
-// --- CONFIGURAÇÕES DE MENSAGENS ---
+// --- CONFIGURAÇÕES DE MENSAGENS (AJUSTADO PARA EVITAR UNDEFINED) ---
 const BASE_URL_LOGIN = "https://sistema-castracao-front.onrender.com";
 
 const messagesService = {
@@ -12,14 +12,24 @@ const messagesService = {
         const saudacao = `Olá *${dados.nome}*! 🏥`;
         const rodape = `\n\n_Equipe Sistema Castração_`;
 
+        // EXTRAÇÃO INTELIGENTE: Busca na raiz ou dentro de administrador
+        const emailFinal = dados.email || (dados.administrador && dados.administrador.email);
+        const senhaFinal = dados.senha || (dados.administrador && dados.administrador.senha);
+
         if (tipoAcao === 'CADASTRO_NOVO') {
-            texto = `${saudacao}\n\nÉ uma honra ter sua clínica como parceira! Seu acesso ao painel foi liberado.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *SENHA:* ${dados.senha}\n🔗 *ACESSO:* ${BASE_URL_LOGIN}${rodape}`;
-        } else if (tipoAcao === 'ATUALIZACAO' && mudouSenha) {
-            texto = `${saudacao}\n\nSeus dados de acesso foram atualizados.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *NOVA SENHA:* ${dados.senha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
+            texto = `${saudacao}\n\nÉ uma honra ter sua clínica como parceira! Seu acesso ao painel foi liberado.\n\n📧 *LOGIN:* ${emailFinal}\n🔑 *SENHA:* ${senhaFinal}\n🔗 *ACESSO:* ${BASE_URL_LOGIN}${rodape}`;
+        } else if (tipoAcao === 'ATUALIZACAO') {
+            const infoSenha = mudouSenha 
+                ? `🔑 *NOVA SENHA:* ${senhaFinal}` 
+                : `🔑 *SENHA:* (Mantida a anterior)`;
+                
+            texto = `${saudacao}\n\nSeus dados de acesso foram atualizados.\n\n📧 *LOGIN:* ${emailFinal}\n${infoSenha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
         }
         
         if (!texto) return null;
-        return `https://wa.me/55${dados.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+        // Garante que limpa o telefone para o link wa.me
+        const foneLimpo = (dados.telefone || "").replace(/\D/g, '');
+        return `https://wa.me/55${foneLimpo}?text=${encodeURIComponent(texto)}`;
     }
 };
 
@@ -135,8 +145,9 @@ const CadastroClinica = () => {
 
             await api.post('/admin/clinicas', payload);
 
+            // Chamada ajustada passando o formData que contém o objeto administrador
             const link = messagesService.gerarLinkWhatsApp(
-                { ...payload, senha: formData.administrador.senha },
+                formData,
                 isEdit ? 'ATUALIZACAO' : 'CADASTRO_NOVO',
                 formData.administrador.senha.length > 0
             );
@@ -168,7 +179,7 @@ const CadastroClinica = () => {
                         {linkWhatsapp && (
                             <a href={linkWhatsapp} target="_blank" rel="noreferrer" 
                                className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black transition-all no-underline shadow-lg shadow-emerald-900/20">
-                                <MessageCircle size={24} /> ENVIAR WHATSAPP
+                                 <MessageCircle size={24} /> ENVIAR WHATSAPP
                             </a>
                         )}
                         <button onClick={() => navigate('/admin/clinicas')} className="mt-8 text-slate-500 hover:text-white text-xs font-bold uppercase tracking-widest">Concluir</button>
@@ -237,8 +248,7 @@ export default CadastroClinica;
 
 /**
  * RESUMO DO CÓDIGO:
- * - Stepper de 3 Fases: Organiza o cadastro por categorias (Identificação, Contato, Acesso).
- * - Persistência Inteligente: Identifica clínicas existentes pelo CNPJ e habilita o modo edição automaticamente.
- * - WhatsApp Service: Gera credenciais e link de acesso dinâmico para o parceiro.
- * - UX de Senha: Inclui gerador de senha segura para facilitar novos cadastros.
+ * - Correção do Undefined: O messagesService local agora utiliza extração inteligente (dados.email || dados.administrador.email).
+ * - Sincronização de Fluxo: O handleSubmit agora envia o formData completo para garantir que o serviço de mensagem encontre as credenciais.
+ * - UX de WhatsApp: O link gerado agora inclui o LOGIN e SENHA corretamente preenchidos, respeitando a estrutura de dados aninhada.
  */

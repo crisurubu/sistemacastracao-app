@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // MUDANÇA AQUI: Agora aponta para o servidor real da ONG
-  baseURL: 'https://sistema-castracao-api.onrender.com/api'
+  // LÓGICA DE AMBIENTE: Detecta se você está em casa ou no servidor real
+  baseURL: window.location.hostname === 'localhost' 
+    ? 'http://localhost:8080/api' 
+    : 'https://sistema-castracao-api.onrender.com/api'
 });
 
 api.interceptors.request.use(config => {

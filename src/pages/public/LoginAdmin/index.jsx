@@ -1,8 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
-// Importamos os ícones do Lucide (comuns em projetos React modernos)
-// Se não tiver instalado, você pode usar emojis ou SVGs simples.
+// IMPORTANTE: Importar a instância da API que criamos
+import api from '../../../services/api'; 
 import { Eye, EyeOff } from 'lucide-react';
 
 const LoginAdmin = () => {
@@ -13,7 +13,6 @@ const LoginAdmin = () => {
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState('');
     const [loading, setLoading] = useState(false);
-    // NOVO ESTADO PARA CONTROLAR A VISIBILIDADE DA SENHA
     const [mostrarSenha, setMostrarSenha] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -27,31 +26,31 @@ const LoginAdmin = () => {
         };
 
         try {
-            const response = await fetch('https://sistema-castracao-api.onrender.com/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
-            });
+            // MUDANÇA: Usando api.post em vez de fetch com URL fixa
+            // O caminho agora é apenas '/auth/login', a base vem do api.js
+            const response = await api.post('/auth/login', loginData);
 
-            const data = await response.json();
+            // No Axios, os dados vêm direto no .data
+            const data = response.data;
 
-            if (response.ok) {
-                login(data.user, data.token);
-                if (data.user.nivelAcesso === 'CLINICA') {
-                    navigate('/admin/dashboard-clinica');
-                } else {
-                    navigate('/admin/painel');
-                }
+            login(data.user, data.token);
+            
+            if (data.user.nivelAcesso === 'CLINICA') {
+                navigate('/admin/dashboard-clinica');
             } else {
-                if (response.status === 401) {
-                    setErro('E-mail ou senha incorretos.');
-                } else {
-                    setErro(data.erro || 'Erro ao realizar login.');
-                }
-                setLoading(false);
+                navigate('/admin/painel');
             }
         } catch (err) {
-            setErro('Erro de conexão com o servidor');
+            // Tratamento de erro com Axios
+            if (err.response) {
+                if (err.response.status === 401) {
+                    setErro('E-mail ou senha incorretos.');
+                } else {
+                    setErro(err.response.data.erro || 'Erro ao realizar login.');
+                }
+            } else {
+                setErro('Erro de conexão com o servidor local/nuvem.');
+            }
             setLoading(false);
         }
     };
@@ -85,7 +84,6 @@ const LoginAdmin = () => {
 
                     <div className="flex flex-col">
                         <label className="mb-2 text-sm font-semibold text-slate-300">Senha</label>
-                        {/* CONTAINER RELATIVO PARA POSICIONAR O OLHO */}
                         <div className="relative">
                             <input
                                 type={mostrarSenha ? "text" : "password"}
@@ -95,18 +93,13 @@ const LoginAdmin = () => {
                                 className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 required
                             />
-                            {/* BOTÃO DO OLHO */}
                             <button
                                 type="button"
                                 onClick={() => setMostrarSenha(!mostrarSenha)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                                tabIndex="-1" // Evita que o tab pare no olho antes de ir para o botão de login
+                                tabIndex="-1"
                             >
-                                {mostrarSenha ? (
-                                    <EyeOff size={20} />
-                                ) : (
-                                    <Eye size={20} />
-                                )}
+                                {mostrarSenha ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
                         </div>
                     </div>

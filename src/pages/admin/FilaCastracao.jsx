@@ -10,6 +10,7 @@ const FilaCastracao = () => {
     const [dadosAgendamento, setDadosAgendamento] = useState({ data: '', hora: '', clinicaId: '' });
     const [submitting, setSubmitting] = useState(false);
     const [clinicas, setClinicas] = useState([]);
+    const [filtro, setFiltro] = useState(""); // NOVO ESTADO PARA FILTRO
 
     useEffect(() => { fetchFila(); }, []);
 
@@ -20,10 +21,17 @@ const FilaCastracao = () => {
         } catch (error) { console.error(error); } finally { setLoading(false); }
     };
 
+    // LÓGICA DE FILTRAGEM
+    const filaFiltrada = fila.filter(item => {
+        const termo = filtro.toLowerCase();
+        const nomePet = (item.pet?.nomeAnimal || "").toLowerCase();
+        const nomeTutor = (item.tutor?.nome || "").toLowerCase();
+        return nomePet.includes(termo) || nomeTutor.includes(termo);
+    });
+
     const carregarClinicas = async () => {
         try {
             const response = await api.get('/admin/clinicas');
-            // Só traz clínicas operacionais
             setClinicas(response.data.filter(c => c.administrador?.ativo));
         } catch (error) { console.error(error); }
     };
@@ -46,11 +54,42 @@ const FilaCastracao = () => {
                 dataHora: `${dadosAgendamento.data}T${dadosAgendamento.hora}`,
                 clinicaId: dadosAgendamento.clinicaId
             };
-            await api.post('/admin/agendamentos', payload);
+            
+            const response = await api.post('/admin/agendamentos', payload);
+            const agendamento = response.data;
+
+            const hashReal = agendamento.codigoHash;
+            const localAgendamento = agendamento.local;
+
+            if (!hashReal) {
+                throw new Error("Erro: O backend não retornou o códigoHash.");
+            }
+
+            const [ano, mes, dia] = dadosAgendamento.data.split('-');
+            const dataHoraFormatada = `${dia}/${mes}/${ano} às ${dadosAgendamento.hora}`;
+
+            const corpoEmail = 
+                `Olá, ${selectedItem.tutor?.nome}!\n\n` +
+                `Agendamento confirmado para o(a) ${selectedItem.pet?.nomeAnimal}.\n\n` +
+                `📅 DATA/HORA: ${dataHoraFormatada}\n` +
+                `📍 LOCAL: ${localAgendamento}\n` +
+                `🔑 HASH: ${hashReal}\n\n` +
+                `Até breve!`;
+            
+            const linkWhatsapp = `https://wa.me/55${selectedItem.tutor?.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(corpoEmail)}`;
+
             setFila(fila.filter(f => f.id !== selectedItem.id));
             setShowModal(false);
-            alert("Agendamento realizado com sucesso!");
-        } catch (error) { alert("Erro ao agendar."); } finally { setSubmitting(false); }
+            
+            window.open(linkWhatsapp, '_blank');
+            alert("Agendamento realizado! WhatsApp gerado com base no sistema.");
+            
+        } catch (error) { 
+            console.error("Erro no fluxo de agendamento:", error);
+            alert(error.message || "Erro ao processar agendamento."); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const getMedalha = (selo) => {
@@ -74,26 +113,37 @@ const FilaCastracao = () => {
 
     return (
         <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans">
-            {/* Header Moderno */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-8">
-                <div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-800 pb-8">
+                <div className="flex-1 w-full">
                     <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
                         Fila de Castração <span className="text-blue-500 text-sm bg-blue-500/10 px-3 py-1 rounded-full uppercase tracking-widest">Master</span>
                     </h1>
-                    <p className="text-slate-400 mt-2 font-medium">Controle de animais prontos para encaminhamento.</p>
+                    <p className="text-slate-400 mt-2 font-medium mb-6">Controle de animais prontos para encaminhamento.</p>
+                    
+                    {/* CAMPO DE BUSCA ADICIONADO */}
+                    <div className="relative max-w-md">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                        <input 
+                            type="text"
+                            placeholder="Buscar por pet ou tutor..."
+                            className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"
+                            value={filtro}
+                            onChange={(e) => setFiltro(e.target.value)}
+                        />
+                    </div>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-inner">
+
+                <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-inner h-fit">
                     <div className="bg-emerald-500/20 p-3 rounded-xl">
                         <CheckCircle2 className="text-emerald-400" size={24} />
                     </div>
                     <div className="pr-4">
-                        <span className="block text-2xl font-bold text-white leading-none">{fila.length}</span>
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Pets Aguardando</span>
+                        <span className="block text-2xl font-bold text-white leading-none">{filaFiltrada.length}</span>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Na Lista</span>
                     </div>
                 </div>
             </div>
 
-            {/* Tabela Estilizada */}
             <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden backdrop-blur-md shadow-2xl">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -106,7 +156,13 @@ const FilaCastracao = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
-                            {fila.map((item) => (
+                            {filaFiltrada.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="p-20 text-center text-slate-500 italic">
+                                        Nenhum registro encontrado na fila.
+                                    </td>
+                                </tr>
+                            ) : filaFiltrada.map((item) => (
                                 <tr key={item.id} className="hover:bg-blue-500/[0.02] transition-all group">
                                     <td className="p-5">
                                         <div className="flex items-center gap-4">
@@ -161,11 +217,10 @@ const FilaCastracao = () => {
                 </div>
             </div>
 
-            {/* MODAL DE AGENDAMENTO PREMIUM */}
+            {/* MODAL PERMANECE IGUAL */}
             {showModal && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 border border-slate-700/50 p-8 rounded-[2.5rem] w-full max-w-md shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] relative overflow-hidden">
-                        {/* Detalhe Decorativo no Modal */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 blur-3xl -mr-16 -mt-16 rounded-full"></div>
 
                         <div className="flex justify-between items-start mb-8 relative">

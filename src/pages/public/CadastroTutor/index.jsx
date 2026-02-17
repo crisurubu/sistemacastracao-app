@@ -9,20 +9,20 @@ const CadastroTutor = () => {
     const [etapa, setEtapa] = useState(1);
     const [loadingCpf, setLoadingCpf] = useState(false);
     const [cpfVerificado, setCpfVerificado] = useState(false);
-    
+
     // NOVO ESTADO PARA BLOQUEIO GLOBAL NO ENVIO FINAL
     const [isEnviando, setIsEnviando] = useState(false);
-    
+
     // ESTADO ATUALIZADO COM OS NOVOS CAMPOS DO BANCO
     const [pixAtivo, setPixAtivo] = useState({
-        chave: 'sistemacastracao@gmail.com',
-        nomeRecebedor: 'Sistema Castracao ong',
-        tipoChave: 'E-MAIL',
-        valorTaxa: 25.00,
-        banco: 'Nubank',
-        agencia: '0001',
-        conta: '1234567-8',
-        documentoRecebedor: '00.000.000/0001-00'
+        chave: 'Carregando...',
+        nomeRecebedor: 'Carregando...',
+        tipoChave: '',
+        valorTaxa: 0.00,
+        banco: '',
+        agencia: '',
+        conta: '',
+        documentoRecebedor: ''
     });
 
     const [dados, setDados] = useState({
@@ -99,7 +99,7 @@ const CadastroTutor = () => {
     };
 
     const verificarCpfExistente = async () => {
-        const cpfLimpo = dados.cpf.replace(/\D/g, ''); 
+        const cpfLimpo = dados.cpf.replace(/\D/g, '');
         if (cpfLimpo.length !== 11) {
             alert("⚠️ Digite o CPF completo.");
             return;
@@ -135,7 +135,7 @@ const CadastroTutor = () => {
         let valorFinal = type === 'checkbox' ? checked : value;
         if (name === 'cpf') {
             valorFinal = aplicarMascaraCPF(value);
-            setCpfVerificado(false); 
+            setCpfVerificado(false);
         }
         if (name === 'whatsapp') valorFinal = aplicarMascaraWhatsApp(value);
         setDados({ ...dados, [name]: valorFinal });
@@ -163,34 +163,42 @@ const CadastroTutor = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!arquivo) { 
-            alert("⚠️ Por favor, anexe o comprovante do PIX."); 
-            return; 
+
+        // Validação extra de segurança
+        if (!arquivo) {
+            alert("⚠️ Por favor, anexe o comprovante do PIX.");
+            return;
         }
 
-        // ATIVA O CARREGAMENTO ANTES DE ENVIAR
         setIsEnviando(true);
 
         const formData = new FormData();
         formData.append('arquivo', arquivo);
+
+        // Criando o objeto exatamente como o DTO do seu Backend espera
         const jsonDados = JSON.stringify(dados);
         formData.append('dados', new Blob([jsonDados], { type: 'application/json' }));
+
         try {
-            await api.post('/cadastros', formData, {
+            const response = await api.post('/cadastros', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            alert('✨ Inscrição enviada com sucesso! Aguarde o contato da ONG.');
-            window.location.reload();
+
+            if (response.status === 201 || response.status === 200) {
+                alert('✨ Inscrição enviada com sucesso! O comprovante sumirá em 24h após a validação.');
+                window.location.href = "/sucesso"; // Ou reload se preferir
+            }
         } catch (error) {
-            console.error("Erro no processo:", error);
-            alert('❌ Erro ao enviar. Verifique sua conexão ou tente novamente.');
-            setIsEnviando(false); // DESATIVA SE DER ERRO PARA ELE TENTAR DE NOVO
+            console.error("Erro no envio:", error);
+            const mensagemErro = error.response?.data?.message || "Erro ao conectar com o servidor.";
+            alert(`❌ Falha no envio: ${mensagemErro}`);
+            setIsEnviando(false);
         }
     };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
-            
+
             {/* OVERLAY DE CARREGAMENTO CIRÚRGICO */}
             {isEnviando && (
                 <div style={{
@@ -218,11 +226,11 @@ const CadastroTutor = () => {
             )}
 
             <NavbarPublica />
-            <main style={{ 
-                flex: 1, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
+            <main style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 padding: '20px 0',
                 filter: isEnviando ? 'blur(2px)' : 'none',
                 pointerEvents: isEnviando ? 'none' : 'auto'
@@ -245,13 +253,27 @@ const CadastroTutor = () => {
                                 <div className="animate-fade">
                                     <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b', marginBottom: '15px' }}>Seja bem-vindo(a)!</h2>
                                     <p style={{ color: '#64748b', lineHeight: '1.6', marginBottom: '10px' }}>O mutirão oferece castração a preço social para garantir a saúde do seu pet.</p>
+
                                     <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
                                         <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b' }}>
-                                            Custo por animal: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}
+                                            {pixAtivo.valorTaxa > 0 ? (
+                                                <>Custo por animal: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}</>
+                                            ) : (
+                                                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Buscando valor atualizado...</span>
+                                            )}
                                         </p>
                                         <small style={{ color: '#94a3b8' }}>Este valor ajuda nos custos de materiais cirúrgicos.</small>
                                     </div>
-                                    <button type="button" onClick={() => setEtapa(2)} className="btn-enviar">Iniciar Inscrição</button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setEtapa(2)}
+                                        className="btn-enviar"
+                                        disabled={pixAtivo.valorTaxa === 0} // Evita avançar sem ter os dados do Pix
+                                        style={{ opacity: pixAtivo.valorTaxa === 0 ? 0.6 : 1 }}
+                                    >
+                                        {pixAtivo.valorTaxa > 0 ? 'Iniciar Inscrição' : 'Aguarde...'}
+                                    </button>
                                 </div>
                             )}
 
@@ -315,7 +337,7 @@ const CadastroTutor = () => {
                                         </select>
                                     </div>
                                     <input name="idadeAprox" placeholder="Idade Aproximada (Ex: 2 anos)" onChange={handleChange} value={dados.idadeAprox} className="input-field" style={{ marginTop: '10px' }} required />
-                                    
+
                                     <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '10px' }}>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', cursor: 'pointer' }}>
                                             <input type="checkbox" name="vacinado" checked={dados.vacinado} onChange={handleChange} /> Possui vacinas em dia?
@@ -324,7 +346,7 @@ const CadastroTutor = () => {
                                             <input type="checkbox" name="operouAntes" checked={dados.operouAntes} onChange={handleChange} /> Já realizou outras cirurgias?
                                         </label>
                                     </div>
-                                    
+
                                     <textarea name="medicamentos" placeholder="Alguma observação médica, alergia ou uso de remédios?" onChange={handleChange} value={dados.medicamentos} className="input-field" style={{ marginTop: '10px', height: '80px', paddingTop: '10px' }} />
 
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
@@ -337,7 +359,7 @@ const CadastroTutor = () => {
                             {etapa === 5 && (
                                 <div className="animate-fade">
                                     <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '10px' }}>Pagamento da Taxa</h2>
-                                    
+
                                     <div style={{ backgroundColor: '#f0f7ff', padding: '20px', borderRadius: '15px', border: '2px dashed #3b82f6', marginBottom: '15px' }}>
                                         <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: '#1e40af', marginBottom: '15px' }}>
                                             VALOR: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}
@@ -364,12 +386,12 @@ const CadastroTutor = () => {
                                         </div>
 
                                         {/* CHAVE PIX INTERATIVA */}
-                                        <div 
+                                        <div
                                             onClick={handleCopyPix}
-                                            style={{ 
-                                                backgroundColor: '#1e293b', 
-                                                padding: '12px', 
-                                                borderRadius: '12px', 
+                                            style={{
+                                                backgroundColor: '#1e293b',
+                                                padding: '12px',
+                                                borderRadius: '12px',
                                                 cursor: 'pointer',
                                                 textAlign: 'center',
                                                 border: '2px solid #3b82f6'
@@ -384,12 +406,12 @@ const CadastroTutor = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <label style={{ block: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
                                         Anexe o comprovante (Foto ou PDF):
                                     </label>
                                     <input type="file" onChange={(e) => setArquivo(e.target.files[0])} className="input-field" accept="image/*,.pdf" required />
-                                    
+
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                                         <button type="button" onClick={prevStep} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #ddd' }}>Voltar</button>
                                         <button type="button" onClick={handleSubmit} className="btn-enviar" style={{ flex: 2 }}>Enviar e Finalizar</button>
@@ -401,7 +423,7 @@ const CadastroTutor = () => {
                 </div>
             </main>
             <Footer />
-            
+
             {/* CSS INLINE PARA A ANIMAÇÃO DO SPINNER SEM PRECISAR DE ARQUIVO EXTERNO */}
             <style>{`
                 @keyframes spin {

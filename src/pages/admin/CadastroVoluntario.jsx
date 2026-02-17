@@ -1,7 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
-import { ArrowLeft, Check, Lock, RefreshCw, UserPlus, Edit3 } from 'lucide-react';
+import { ArrowLeft, Check, RefreshCw, UserPlus, Edit3, MessageCircle, Loader2 } from 'lucide-react';
+
+// --- SERVICE DE MENSAGENS ---
+const BASE_URL_LOGIN = "https://sistema-castracao-front.onrender.com";
+
+const messagesService = {
+    gerarLinkWhatsApp: (dados, tipoAcao, mudouSenha = false) => {
+        let texto = "";
+        const saudacao = `Olá *${dados.nome}*! 👋`;
+        const rodape = `\n\n_Equipe Sistema Castração_`;
+
+        if (tipoAcao === 'CADASTRO_NOVO') {
+            texto = `${saudacao}\n\nBem-vindo(a) à equipe de voluntários da *Sistema Castracao ong*! Seu acesso está pronto.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *SENHA:* ${dados.senha}\n🌐 *LINK:* ${BASE_URL_LOGIN}\n\n_Vamos juntos fazer a diferença!_${rodape}`;
+        } else if (tipoAcao === 'ATUALIZACAO' && mudouSenha) {
+            texto = `${saudacao}\n\nSeus dados de acesso na *Sistema Castracao ong* foram atualizados.\n\n📧 *LOGIN:* ${dados.email}\n🔑 *NOVA SENHA:* ${dados.senha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
+        }
+        
+        if (!texto) return null;
+        return `https://wa.me/55${dados.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+    }
+};
 
 const CadastroVoluntario = () => {
     const navigate = useNavigate();
@@ -17,10 +37,7 @@ const CadastroVoluntario = () => {
         bairro: '',
         cidade: '',
         estado: '',
-        administrador: {
-            email: '',
-            senha: ''
-        }
+        administrador: { email: '', senha: '' }
     };
 
     const [passo, setPasso] = useState(1);
@@ -29,6 +46,13 @@ const CadastroVoluntario = () => {
     const [mensagemInfo, setMensagemInfo] = useState('');
     const [isEdit, setIsEdit] = useState(false);
     const [formData, setFormData] = useState(estadoInicial);
+    const [linkWhatsapp, setLinkWhatsapp] = useState(null);
+    const [sucessoFinal, setSucessoFinal] = useState(false);
+
+    // Máscaras
+    const maskCPF = (v) => v.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    const maskWhatsApp = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
+    const maskCEP = (v) => v.replace(/\D/g, "").replace(/^(\d{5})(\d)/, "$1-$2").replace(/(-\d{3})\d+?$/, "$1");
 
     const gerarSenhaAleatoria = () => {
         const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -37,26 +61,13 @@ const CadastroVoluntario = () => {
         return senha;
     };
 
-    const maskCPF = (v) => v.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    const maskWhatsApp = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
-    const maskCEP = (v) => v.replace(/\D/g, "").replace(/^(\d{5})(\d)/, "$1-$2").replace(/(-\d{3})\d+?$/, "$1");
-
     const validarCpfESeguir = useCallback(async (cpfManual) => {
-        const cpfParaValidar = cpfManual || formData.cpf;
-        const cpfLimpo = cpfParaValidar.replace(/\D/g, '');
-        
-        if (cpfLimpo.length < 11) {
-            setErro("⚠️ Informe um CPF completo.");
-            return;
-        }
+        const cpfLimpo = (cpfManual || formData.cpf).replace(/\D/g, '');
+        if (cpfLimpo.length < 11) return setErro("⚠️ Informe um CPF completo.");
 
-        setLoading(true);
-        setErro("");
-        setMensagemInfo(""); // Limpa info anterior
-
+        setLoading(true); setErro("");
         try {
             const response = await api.get(`/admin/voluntarios/verificar/${cpfLimpo}`);
-
             if (response.data.existe) {
                 const v = response.data.voluntario;
                 setIsEdit(true);
@@ -65,56 +76,33 @@ const CadastroVoluntario = () => {
                     cpf: maskCPF(v.cpf),
                     whatsapp: maskWhatsApp(v.whatsapp || ''),
                     cep: maskCEP(v.cep || ''),
-                    administrador: {
-                        ...v.administrador,
-                        senha: '' 
-                    }
+                    administrador: { email: (v.administrador?.email || '').toLowerCase(), senha: '' }
                 });
-                setMensagemInfo("ℹ️ Modo de edição ativado para este voluntário.");
-                setPasso(2); // CORREÇÃO: Força o avanço para o passo 2 na edição
-            } else {
-                setIsEdit(false);
-                // Se for novo, valida se tem nome antes de seguir
-                if (formData.nome.length > 3 || (cpfManual && !response.data.existe)) {
-                    setPasso(2);
-                } else {
-                    setErro("⚠️ CPF disponível! Informe o nome para prosseguir.");
-                }
+                setMensagemInfo("ℹ️ Voluntário encontrado! Modo de edição ativado.");
             }
-        } catch (err) {
-            setErro("❌ Erro ao validar CPF.");
-        } finally {
-            setLoading(false);
-        }
-    }, [formData.cpf, formData.nome]);
+            setPasso(2);
+        } catch (err) { setErro("❌ Erro ao validar CPF."); } 
+        finally { setLoading(false); }
+    }, [formData.cpf]);
 
     useEffect(() => {
-        if (location.state?.cpfPreenchido) {
-            const cpfFormatado = maskCPF(location.state.cpfPreenchido);
-            setFormData(prev => ({ ...prev, cpf: cpfFormatado }));
-            validarCpfESeguir(location.state.cpfPreenchido);
-        }
-    }, [location.state, validarCpfESeguir]);
-
-    const resetarFormulario = () => {
-        setFormData({
-            ...estadoInicial,
-            administrador: { ...estadoInicial.administrador, senha: gerarSenhaAleatoria() }
-        });
-        setPasso(1);
-        setIsEdit(false);
-        setErro('');
-        setMensagemInfo('');
-    };
-
-    useEffect(() => {
-        if (!isEdit && !formData.administrador.senha) {
+        if (location.state?.voluntario) {
+            const v = location.state.voluntario;
+            setIsEdit(true);
+            setFormData({
+                ...v,
+                cpf: maskCPF(v.cpf),
+                whatsapp: maskWhatsApp(v.whatsapp || ''),
+                cep: maskCEP(v.cep || ''),
+                administrador: { email: (v.administrador?.email || '').toLowerCase(), senha: '' }
+            });
+        } else if (!isEdit && !formData.administrador.senha) {
             setFormData(prev => ({
                 ...prev,
                 administrador: { ...prev.administrador, senha: gerarSenhaAleatoria() }
             }));
         }
-    }, [isEdit]);
+    }, [location.state]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -122,194 +110,142 @@ const CadastroVoluntario = () => {
         if (name === "cpf") val = maskCPF(value);
         if (name === "whatsapp") val = maskWhatsApp(value);
         if (name === "cep") val = maskCEP(value);
+        if (name === "nome" || name === "logradouro" || name === "bairro") val = value.replace(/\b\w/g, (l) => l.toUpperCase());
 
         if (name === "email") {
-            setFormData({ ...formData, administrador: { ...formData.administrador, [name]: val } });
+            setFormData({ ...formData, administrador: { ...formData.administrador, [name]: val.toLowerCase().trim() } });
         } else {
             setFormData({ ...formData, [name]: val });
         }
     };
 
+    const buscarCep = async () => {
+        const cepLimpo = formData.cep.replace(/\D/g, '');
+        if (cepLimpo.length !== 8) return;
+        try {
+            const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+            const data = await res.json();
+            if (!data.erro) {
+                setFormData(prev => ({
+                    ...prev,
+                    logradouro: data.logradouro, bairro: data.bairro, cidade: data.localidade, estado: data.uf
+                }));
+            }
+        } catch (err) { console.error("Erro CEP"); }
+    };
+
     const handleSubmit = async () => {
-        setLoading(true);
-        setErro("");
-        
+        setLoading(true); setErro("");
         try {
             const payload = {
                 ...formData,
                 cpf: formData.cpf.replace(/\D/g, ''),
                 cep: formData.cep.replace(/\D/g, ''),
                 whatsapp: formData.whatsapp.replace(/\D/g, ''),
-                administrador: {
-                    ...formData.administrador,
-                    nome: formData.nome,
-                    nivelAcesso: "VOLUNTARIO"
-                }
+                administrador: { ...formData.administrador, nome: formData.nome, nivelAcesso: "VOLUNTARIO" }
             };
 
             await api.post('/admin/voluntarios', payload);
 
-            alert(isEdit ? "✅ Dados atualizados!" : "✅ Voluntário cadastrado!");
-            resetarFormulario();
-            navigate('/admin/voluntarios');
-            
+            const link = messagesService.gerarLinkWhatsApp(
+                { ...payload, senha: formData.administrador.senha },
+                isEdit ? 'ATUALIZACAO' : 'CADASTRO_NOVO',
+                formData.administrador.senha.length > 0
+            );
+
+            setLinkWhatsapp(link);
+            setSucessoFinal(true);
         } catch (err) {
             setErro(`❌ ${err.response?.data?.message || "Falha ao salvar"}`);
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
-    const buscarCep = async () => {
-        const cepLimpo = formData.cep.replace(/\D/g, '');
-        if (cepLimpo.length === 8) {
-            try {
-                const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-                const data = await response.json();
-                if (!data.erro) {
-                    setFormData(prev => ({
-                        ...prev,
-                        logradouro: data.logradouro, bairro: data.bairro, city: data.localidade, estado: data.uf
-                    }));
-                }
-            } catch (err) { }
-        }
-    };
-
-    const inputStyle = `w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${loading ? 'opacity-50 cursor-not-allowed' : ''}`;
+    const inputStyle = `w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all`;
 
     return (
         <div className="p-6 bg-slate-950 min-h-screen text-white">
-            <button onClick={() => navigate('/admin/voluntarios')} className="mb-6 text-slate-400 hover:text-white flex items-center transition-colors font-bold text-xs uppercase tracking-widest">
-                <ArrowLeft size={16} className="mr-2"/> Voltar
+            <button onClick={() => navigate('/admin/voluntarios')} className="mb-6 text-slate-400 hover:text-white flex items-center gap-2 transition-colors font-bold text-xs uppercase">
+                <ArrowLeft size={16}/> Voltar para Lista
             </button>
 
-            <div className="max-w-md mx-auto bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border border-slate-800 relative overflow-hidden">
-                {isEdit && (
-                    <div className="absolute top-4 right-8 flex items-center gap-1 text-[10px] font-black text-amber-500 uppercase tracking-tighter bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
-                        <Edit3 size={12} /> Editando
+            <div className="max-w-md mx-auto bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+                {sucessoFinal ? (
+                    <div className="text-center animate-in zoom-in duration-300">
+                        <div className="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-emerald-500">
+                            <Check size={40} />
+                        </div>
+                        <h2 className="text-2xl font-black mb-2 italic uppercase text-emerald-500">Voluntário Salvo!</h2>
+                        <p className="text-slate-400 text-sm mb-8">Cadastro realizado com sucesso.</p>
+
+                        {linkWhatsapp && (
+                            <a href={linkWhatsapp} target="_blank" rel="noreferrer" 
+                               className="flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black no-underline shadow-lg shadow-emerald-900/20">
+                                <MessageCircle size={24} /> ENVIAR WHATSAPP
+                            </a>
+                        )}
+                        <button onClick={() => navigate('/admin/voluntarios')} className="mt-8 text-slate-500 hover:text-white font-bold text-xs uppercase tracking-widest transition-colors">Concluir</button>
                     </div>
-                )}
+                ) : (
+                    <>
+                        <div className="flex items-center justify-center mb-8 space-x-2">
+                            {[1, 2, 3].map((num) => (
+                                <div key={num} className="flex items-center">
+                                    <div className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold ${passo >= num ? 'bg-emerald-600' : 'bg-slate-800 text-slate-500'}`}>{passo > num ? <Check size={18}/> : num}</div>
+                                    {num < 3 && <div className={`w-6 h-1 ${passo > num ? 'bg-emerald-600' : 'bg-slate-800'}`} />}
+                                </div>
+                            ))}
+                        </div>
 
-                {loading && (
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                        <div className="flex flex-col items-center">
-                            <RefreshCw className="animate-spin text-emerald-500 mb-2" size={32} />
-                            <span className="text-emerald-400 font-black uppercase tracking-tighter text-[10px]">Processando...</span>
-                        </div>
-                    </div>
-                )}
+                        <h2 className="text-xl font-black uppercase mb-6 text-center italic text-emerald-500 flex items-center justify-center gap-2">
+                            {isEdit ? <Edit3 size={20}/> : <UserPlus size={20}/>}
+                            {isEdit ? "Editar Voluntário" : "Novo Voluntário"}
+                        </h2>
 
-                {/* Stepper */}
-                <div className="flex items-center justify-center mb-8 space-x-2">
-                    {[1, 2, 3].map((num) => (
-                        <div key={num} className="flex items-center">
-                            <div className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-black transition-all ${passo === num ? 'bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : passo > num ? 'bg-emerald-900/40 text-emerald-500' : 'bg-slate-800 text-slate-500'}`}>
-                                {passo > num ? <Check size={14}/> : num}
-                            </div>
-                            {num < 3 && <div className={`w-6 h-0.5 mx-1 ${passo > num ? 'bg-emerald-600/50' : 'bg-slate-800'}`} />}
-                        </div>
-                    ))}
-                </div>
+                        {erro && <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 text-red-400 rounded-xl text-[10px] text-center font-bold uppercase">{erro}</div>}
+                        {mensagemInfo && <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 rounded-xl text-[10px] text-center font-bold uppercase">{mensagemInfo}</div>}
 
-                <h2 className="text-xl font-black uppercase tracking-tighter mb-6 text-center italic flex items-center justify-center gap-2">
-                    {isEdit ? <Edit3 className="text-amber-500" size={20}/> : <UserPlus className="text-emerald-500" size={20}/>}
-                    <span className={isEdit ? "text-amber-500" : "text-emerald-500"}>
-                        {passo === 1 ? "Identificação" : passo === 2 ? "Localização" : "Segurança"}
-                    </span>
-                </h2>
-
-                {erro && <div className="mb-6 p-3 bg-red-900/20 border border-red-500/50 text-red-400 rounded-xl text-[10px] text-center font-bold uppercase">{erro}</div>}
-                {mensagemInfo && <div className="mb-6 p-3 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 rounded-xl text-[10px] text-center font-bold uppercase">{mensagemInfo}</div>}
-
-                {passo === 1 && (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">CPF (Consulta Automática)</label>
-                            <div className="flex gap-2">
-                                <input className={inputStyle} name="cpf" placeholder="000.000.000-00" onChange={handleChange} value={formData.cpf} disabled={loading || isEdit} />
-                                {isEdit && (
-                                    <button onClick={() => { setIsEdit(false); setFormData({...formData, cpf: ''}) }} className="bg-slate-700 hover:bg-red-500/20 hover:text-red-500 px-3 rounded-xl transition-all">
-                                        <RefreshCw size={18} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome do Voluntário</label>
-                            <input className={inputStyle} name="nome" placeholder="Nome Completo" onChange={handleChange} value={formData.nome} disabled={loading} />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">WhatsApp</label>
-                            <input className={inputStyle} name="whatsapp" placeholder="(00) 00000-0000" onChange={handleChange} value={formData.whatsapp} disabled={loading} />
-                        </div>
-                        
-                        <button 
-                            onClick={() => validarCpfESeguir()} 
-                            disabled={loading || !formData.cpf || !formData.nome} 
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 p-4 rounded-2xl font-black uppercase tracking-widest transition-all mt-4 text-xs shadow-lg shadow-emerald-900/40"
-                        >
-                            Próximo Passo
-                        </button>
-                    </div>
-                )}
-
-                {passo === 2 && (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">CEP</label>
-                                <input className={inputStyle} name="cep" placeholder="00000-000" onChange={handleChange} onBlur={buscarCep} value={formData.cep} disabled={loading} />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Número</label>
-                                <input className={inputStyle} name="numero" placeholder="Nº" onChange={handleChange} value={formData.numero} disabled={loading} />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Logradouro (Rua/Av)</label>
-                            <input className={inputStyle} name="logradouro" placeholder="Endereço..." onChange={handleChange} value={formData.logradouro} disabled={loading} />
-                        </div>
-                        <div className="flex gap-3 mt-4">
-                            <button onClick={() => setPasso(1)} className="w-1/3 bg-slate-800 text-slate-500 p-4 rounded-2xl font-bold uppercase text-[10px]">Voltar</button>
-                            <button onClick={() => setPasso(3)} className="w-2/3 bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Continuar</button>
-                        </div>
-                    </div>
-                )}
-
-                {passo === 3 && (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">E-mail para Acesso</label>
-                            <input className={inputStyle} name="email" type="email" placeholder="voluntario@sistema.com" onChange={handleChange} value={formData.administrador.email} disabled={loading} />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">
-                                {isEdit ? "Nova Senha (deixe vazio para manter)" : "Senha Gerada"}
-                            </label>
-                            <div className="relative">
-                                <input 
-                                    className={`${inputStyle} pr-12 font-mono`} 
-                                    value={formData.administrador.senha} 
-                                    onChange={(e) => setFormData({...formData, administrador: {...formData.administrador, senha: e.target.value}})}
-                                    placeholder={isEdit ? "••••••••" : ""}
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={() => setFormData({...formData, administrador: {...formData.administrador, senha: gerarSenhaAleatoria()}})}
-                                    className="absolute right-3 top-2.5 text-emerald-500 hover:text-emerald-400 p-1"
-                                >
-                                    <RefreshCw size={16} />
+                        {passo === 1 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                <input className={inputStyle} name="cpf" placeholder="CPF" onChange={handleChange} value={formData.cpf} disabled={isEdit} />
+                                <input className={inputStyle} name="nome" placeholder="Nome Completo" onChange={handleChange} value={formData.nome} />
+                                <input className={inputStyle} name="whatsapp" placeholder="WhatsApp com DDD" onChange={handleChange} value={formData.whatsapp} />
+                                <button onClick={() => validarCpfESeguir()} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 p-4 rounded-xl font-black uppercase flex justify-center items-center gap-2">
+                                    {loading ? <Loader2 className="animate-spin" size={20} /> : "Próximo"}
                                 </button>
                             </div>
-                        </div>
-                        <div className="flex gap-3 mt-4">
-                            <button onClick={() => setPasso(2)} className="w-1/3 bg-slate-800 text-slate-500 p-4 rounded-2xl font-bold uppercase text-[10px]">Voltar</button>
-                            <button onClick={handleSubmit} disabled={loading} className="w-2/3 bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] italic tracking-widest shadow-lg shadow-emerald-900/40">
-                                {isEdit ? "Salvar Alterações" : "Concluir Cadastro"}
-                            </button>
-                        </div>
-                    </div>
+                        )}
+
+                        {passo === 2 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input className={inputStyle} name="cep" placeholder="CEP" onChange={handleChange} onBlur={buscarCep} value={formData.cep} />
+                                    <input className={inputStyle} name="numero" placeholder="Número" onChange={handleChange} value={formData.numero} />
+                                </div>
+                                <input className={inputStyle} name="logradouro" placeholder="Endereço" onChange={handleChange} value={formData.logradouro} />
+                                <input className={inputStyle} name="bairro" placeholder="Bairro" onChange={handleChange} value={formData.bairro} />
+                                <div className="flex gap-2">
+                                    <button onClick={() => setPasso(1)} className="w-1/2 bg-slate-800 p-4 rounded-xl font-bold uppercase text-xs">Voltar</button>
+                                    <button onClick={() => setPasso(3)} className="w-1/2 bg-emerald-600 p-4 rounded-xl font-bold uppercase text-xs">Próximo</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {passo === 3 && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                <input className={inputStyle} name="email" type="email" placeholder="E-mail de Acesso" onChange={handleChange} value={formData.administrador.email} />
+                                <div className="relative">
+                                    <input className={`${inputStyle} font-mono`} name="senha" value={formData.administrador.senha} onChange={(e) => setFormData({...formData, administrador: {...formData.administrador, senha: e.target.value}})} placeholder={isEdit ? "Nova Senha (Opcional)" : "Senha"} />
+                                    <button type="button" onClick={() => setFormData({...formData, administrador: {...formData.administrador, senha: gerarSenhaAleatoria()}})} className="absolute right-3 top-3 text-emerald-500"><RefreshCw size={18} /></button>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setPasso(2)} className="w-1/2 bg-slate-800 p-4 rounded-xl font-bold uppercase text-xs">Voltar</button>
+                                    <button onClick={handleSubmit} disabled={loading} className="w-1/2 bg-emerald-600 p-4 rounded-xl font-black uppercase text-xs flex justify-center items-center gap-2">
+                                        {loading ? <Loader2 className="animate-spin" size={18} /> : "Finalizar"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
@@ -317,3 +253,11 @@ const CadastroVoluntario = () => {
 };
 
 export default CadastroVoluntario;
+
+/**
+ * RESUMO DO CÓDIGO:
+ * - Fluxo de Cadastro Verde (Emerald): Identidade visual própria para voluntários.
+ * - Integração ViaCEP: Busca automática de logradouro e bairro para agilizar o preenchimento.
+ * - Segurança de CPF: Validação automática que alterna entre criação e edição de voluntário.
+ * - Mensagens de Boas-vindas: Gera link de WhatsApp formatado com credenciais de acesso.
+ */

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PawPrint, CheckCircle, FileText, TrendingUp, Clock, Loader2, ListChecks, ShieldCheck, Hash, User, MessageCircle, KeyRound, Settings } from 'lucide-react';
+import { Search, PawPrint, CheckCircle, FileText, TrendingUp, Clock, Loader2, ListChecks, ShieldCheck, Hash, User, MessageCircle, Settings, BarChart3 } from 'lucide-react';
 import api from '../../services/api';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { gerarGuiaCastracao } from '../../utils/GeradorPDF';
 import ModalAlterarSenha from './ModalAlterarSenha';
 
@@ -14,13 +14,15 @@ const DashboardClinica = () => {
     const [erroHash, setErroHash] = useState(false);
     const [modalSenhaAberto, setModalSenhaAberto] = useState(false);
 
-    const metaSuperior = stats.totalVidas < 1 ? 10 : stats.totalVidas < 20 ? 20 : stats.totalVidas < 50 ? 50 : stats.totalVidas + 20;
-    const dadosGraficoImpacto = [
-        { name: 'Início', qtd: 0 },
-        { name: 'Meta 1', qtd: Math.floor(metaSuperior * 0.3) },
-        { name: 'Meta 2', qtd: Math.floor(metaSuperior * 0.7) },
-        { name: 'Hoje', qtd: stats.totalVidas },
-    ];
+    // ESTADO DO GRÁFICO REALISTA - COMEÇA NO CHÃO (ZERO)
+    const [dadosGraficoImpacto, setDadosGraficoImpacto] = useState([
+        { name: 'Jan', qtd: 0 },
+        { name: 'Fev', qtd: 0 },
+        { name: 'Mar', qtd: 0 },
+        { name: 'Abr', qtd: 0 },
+    ]);
+
+    const metaSuperior = stats.totalVidas < 10 ? 10 : stats.totalVidas + 5;
 
     useEffect(() => { fetchDadosCentral(); }, []);
 
@@ -33,6 +35,19 @@ const DashboardClinica = () => {
                 medalha: res.data.selo || 'INICIANTE',
                 nomeClinica: res.data.nomeClinica || 'Clínica Parceira'
             });
+
+            // Lógica para preencher o gráfico com dados reais do banco
+            if (res.data.pontosGrafico && res.data.pontosGrafico.length > 0) {
+                setDadosGraficoImpacto(res.data.pontosGrafico);
+            } else {
+                // Se o banco não enviar o histórico, ele mapeia o totalVidas apenas para o mês atual
+                const mesAtual = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date()).replace('.', '');
+                setDadosGraficoImpacto(prev => prev.map(p => 
+                    p.name.toLowerCase() === mesAtual.toLowerCase() 
+                    ? { ...p, qtd: res.data.totalVidas || 0 } 
+                    : p
+                ));
+            }
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
@@ -79,29 +94,20 @@ const DashboardClinica = () => {
         <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans text-slate-200">
             {/* HEADER */}
             <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-slate-900/40 p-8 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden">
-                
                 <div className="flex-1">
                     <div className="flex items-center gap-4">
                         <h1 className="text-4xl font-black text-white italic tracking-tighter">
                             Olá, <span className="text-emerald-500">{stats.nomeClinica}</span>
                         </h1>
-                        {/* BOTÃO DE SEGURANÇA INTEGRADO AO NOME */}
-                        <button 
-                            onClick={() => setModalSenhaAberto(true)}
-                            className="bg-slate-950 p-2 rounded-full border border-slate-800 text-slate-500 hover:text-emerald-500 hover:border-emerald-500/30 transition-all group shadow-lg"
-                            title="Alterar Senha"
-                        >
+                        <button onClick={() => setModalSenhaAberto(true)} className="bg-slate-950 p-2 rounded-full border border-slate-800 text-slate-500 hover:text-emerald-500 hover:border-emerald-500/30 transition-all group shadow-lg">
                             <Settings size={18} className="group-hover:rotate-90 transition-transform duration-500" />
                         </button>
                     </div>
-                    
                     <p className="text-slate-400 mt-2">
                         Total de <span className="text-emerald-500 text-3xl font-black px-1">{stats.totalVidas}</span> 
                         vidas salvas com a <span className="text-white font-bold italic underline decoration-emerald-500">ONG Sistema Castração</span>.
                     </p>
                 </div>
-
-                {/* AREA DA MEDALHA */}
                 <div className="shrink-0 z-10">
                     {renderMedalhaBD(stats.medalha)}
                 </div>
@@ -124,13 +130,36 @@ const DashboardClinica = () => {
                     )}
                 </div>
 
-                {/* IMPACTO */}
+                {/* GRÁFICO REALISTA - TIPO SETA/DEGRAU */}
                 <div className="bg-slate-900/60 border border-slate-800 p-8 rounded-[3rem] shadow-xl">
-                    <h2 className="text-lg font-black text-white mb-4 uppercase flex items-center gap-2"><TrendingUp className="text-emerald-500" /> Evolução do Impacto</h2>
-                    <div className="h-32 w-full">
-                        <ResponsiveContainer>
-                            <AreaChart data={dadosGraficoImpacto}>
-                                <Area type="monotone" dataKey="qtd" stroke="#10b981" fill="#10b98133" strokeWidth={4} />
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-lg font-black text-white uppercase flex items-center gap-2">
+                            <TrendingUp className="text-emerald-500" /> Ritmo de Castração
+                        </h2>
+                        <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-tighter">Meta: {metaSuperior} Vidas</span>
+                    </div>
+                    
+                    <div className="h-40 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={dadosGraficoImpacto} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 'bold'}} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
+                                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderRadius: '15px', border: '1px solid #334155', color: '#fff' }} />
+                                <Area 
+                                    type="stepAfter" // Mostra a subida real como uma escada/seta
+                                    dataKey="qtd" 
+                                    stroke="#10b981" 
+                                    strokeWidth={4} 
+                                    fillOpacity={1} 
+                                    fill="url(#colorReal)" 
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -187,9 +216,3 @@ const DashboardClinica = () => {
 };
 
 export default DashboardClinica;
-
-// RESUMO DO CÓDIGO:
-// 1. Correção de Sobreposição: O botão de segurança foi movido para o lado do nome da clínica, evitando conflito com a medalha.
-// 2. Hierarquia Visual: Agora o botão funciona como um ícone de "Configuração de Conta", mantendo o Header limpo e funcional.
-// 3. Estilo ONG: O botão usa o fundo bg-slate-950 para se destacar sutilmente do card principal, mantendo o padrão visual.
-// 4. Responsividade: Ao estar colado no título, ele flui naturalmente com o texto em qualquer tamanho de tela.

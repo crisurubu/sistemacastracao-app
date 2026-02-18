@@ -164,7 +164,6 @@ const CadastroTutor = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validação extra de segurança
         if (!arquivo) {
             alert("⚠️ Por favor, anexe o comprovante do PIX.");
             return;
@@ -174,8 +173,6 @@ const CadastroTutor = () => {
 
         const formData = new FormData();
         formData.append('arquivo', arquivo);
-
-        // Criando o objeto exatamente como o DTO do seu Backend espera
         const jsonDados = JSON.stringify(dados);
         formData.append('dados', new Blob([jsonDados], { type: 'application/json' }));
 
@@ -185,8 +182,8 @@ const CadastroTutor = () => {
             });
 
             if (response.status === 201 || response.status === 200) {
-                alert('✨ Inscrição enviada com sucesso! O comprovante sumirá em 24h após a validação.');
-                window.location.href = "/sucesso"; // Ou reload se preferir
+                setEtapa(6); 
+                setIsEnviando(false);
             }
         } catch (error) {
             console.error("Erro no envio:", error);
@@ -199,7 +196,6 @@ const CadastroTutor = () => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
 
-            {/* OVERLAY DE CARREGAMENTO CIRÚRGICO */}
             {isEnviando && (
                 <div style={{
                     position: 'fixed',
@@ -241,9 +237,11 @@ const CadastroTutor = () => {
                             <h1 translate="no" style={{ fontWeight: 900, fontSize: '2.2rem', lineHeight: '1.1', marginBottom: '1rem' }}>Mutirão de Castração</h1>
                             <p style={{ opacity: 0.9, fontSize: '1rem', marginBottom: '2rem' }}>Protegendo os animais de Tatuí através do controle populacional.</p>
                             <div style={{ marginTop: 'auto' }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '5px' }}>PASSO {etapa} DE 5</div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '5px' }}>
+                                    {etapa <= 5 ? `PASSO ${etapa} DE 5` : 'CONCLUÍDO'}
+                                </div>
                                 <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', height: '6px', borderRadius: '10px' }}>
-                                    <div style={{ backgroundColor: '#fff', width: `${(etapa / 5) * 100}%`, height: '100%', borderRadius: '10px', transition: '0.5s' }}></div>
+                                    <div style={{ backgroundColor: '#fff', width: `${etapa >= 6 ? 100 : (etapa / 5) * 100}%`, height: '100%', borderRadius: '10px', transition: '0.5s' }}></div>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +267,7 @@ const CadastroTutor = () => {
                                         type="button"
                                         onClick={() => setEtapa(2)}
                                         className="btn-enviar"
-                                        disabled={pixAtivo.valorTaxa === 0} // Evita avançar sem ter os dados do Pix
+                                        disabled={pixAtivo.valorTaxa === 0}
                                         style={{ opacity: pixAtivo.valorTaxa === 0 ? 0.6 : 1 }}
                                     >
                                         {pixAtivo.valorTaxa > 0 ? 'Iniciar Inscrição' : 'Aguarde...'}
@@ -365,7 +363,6 @@ const CadastroTutor = () => {
                                             VALOR: R$ {pixAtivo.valorTaxa.toFixed(2).replace('.', ',')}
                                         </p>
 
-                                        {/* BOX DE DADOS BANCÁRIOS REAIS */}
                                         <div style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '5px' }}>
                                                 <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Banco:</span>
@@ -385,7 +382,6 @@ const CadastroTutor = () => {
                                             </div>
                                         </div>
 
-                                        {/* CHAVE PIX INTERATIVA */}
                                         <div
                                             onClick={handleCopyPix}
                                             style={{
@@ -407,7 +403,7 @@ const CadastroTutor = () => {
                                         </div>
                                     </div>
 
-                                    <label style={{ block: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
                                         Anexe o comprovante (Foto ou PDF):
                                     </label>
                                     <input type="file" onChange={(e) => setArquivo(e.target.files[0])} className="input-field" accept="image/*,.pdf" required />
@@ -418,13 +414,59 @@ const CadastroTutor = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {etapa === 6 && (
+                                <div className="animate-fade" style={{ textAlign: 'center', padding: '10px 0' }}>
+                                    <div style={{ fontSize: '5rem', marginBottom: '10px' }}>🐾</div>
+                                    
+                                    <h2 style={{ 
+                                        fontSize: '2.2rem', 
+                                        fontWeight: 900, 
+                                        color: '#10b981', 
+                                        lineHeight: '1',
+                                        marginBottom: '15px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        Show! <br/> Inscrição Feita!
+                                    </h2>
+                                    
+                                    <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.5', marginBottom: '30px' }}>
+                                        Valeu! Recebemos o cadastro do(a) <strong>{dados.nomePet}</strong>.<br/>
+                                        Nossa equipe vai analisar tudo com carinho.
+                                    </p>
+
+                                    <div style={{ 
+                                        backgroundColor: '#f0fdf4', 
+                                        padding: '20px', 
+                                        borderRadius: '20px', 
+                                        border: '2px solid #bbf7d0', 
+                                        marginBottom: '30px'
+                                    }}>
+                                        <p style={{ margin: 0, fontSize: '1rem', color: '#166534', fontWeight: '600' }}>
+                                            🚀 Agora é só aguardar nosso contato via WhatsApp ou E-mail!
+                                        </p>
+                                    </div>
+
+                                    <button 
+                                        type="button" 
+                                        onClick={() => window.location.reload()} 
+                                        className="btn-enviar"
+                                        style={{ 
+                                            backgroundColor: '#1e293b', 
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                            padding: '18px'
+                                        }}
+                                    >
+                                        Fazer Novo Cadastro
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </main>
             <Footer />
 
-            {/* CSS INLINE PARA A ANIMAÇÃO DO SPINNER SEM PRECISAR DE ARQUIVO EXTERNO */}
             <style>{`
                 @keyframes spin {
                     to { transform: rotate(360deg); }

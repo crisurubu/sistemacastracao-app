@@ -40,18 +40,24 @@ const LoginAdmin = () => {
             } else {
                 navigate('/admin/painel');
             }
-        } catch (err) {
-            // Tratamento de erro com Axios
+       } catch (err) {
+            setLoading(false);
+            
             if (err.response) {
-                if (err.response.status === 401) {
-                    setErro('E-mail ou senha incorretos.');
+                // Pega a mensagem vinda do AutenticacaoService.java
+                const mensagemServidor = err.response.data.message || err.response.data;
+
+                // Verifica se a mensagem contém o texto de conta inativa/bloqueada
+                if (mensagemServidor.includes("inativa") || mensagemServidor.includes("contate a administração")) {
+                    setErro("🚫 Sua conta está bloqueada. Por favor, entre em contato com o administrador.");
+                } else if (err.response.status === 401 || mensagemServidor.includes("incorretos")) {
+                    setErro("❌ E-mail ou senha incorretos.");
                 } else {
-                    setErro(err.response.data.erro || 'Erro ao realizar login.');
+                    setErro(mensagemServidor || 'Erro ao realizar login.');
                 }
             } else {
-                setErro('Erro de conexão com o servidor local/nuvem.');
+                setErro('🌐 Erro de conexão com o servidor (Local/Nuvem).');
             }
-            setLoading(false);
         }
     };
 

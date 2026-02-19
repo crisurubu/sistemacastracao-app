@@ -1,5 +1,5 @@
 // src/services/messagesService.js
-const BASE_URL_LOGIN = "https://sistema-castracao-front.onrender.com";
+const BASE_URL_LOGIN = "https://sistema-castracao-app.onrender.com/admin/login";
 
 export const messagesService = {
     

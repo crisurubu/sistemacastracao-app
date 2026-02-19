@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
 // IMPORTANTE: Importar a instância da API que criamos
-import api from '../../../services/api'; 
+import api from '../../../services/api';
 import { Eye, EyeOff } from 'lucide-react';
 
 const LoginAdmin = () => {
@@ -34,29 +34,31 @@ const LoginAdmin = () => {
             const data = response.data;
 
             login(data.user, data.token);
-            
+
             if (data.user.nivelAcesso === 'CLINICA') {
                 navigate('/admin/dashboard-clinica');
             } else {
                 navigate('/admin/painel');
             }
-       } catch (err) {
+        } catch (err) {
             setLoading(false);
-            
-            if (err.response) {
-                // Pega a mensagem vinda do AutenticacaoService.java
-                const mensagemServidor = err.response.data.message || err.response.data;
 
-                // Verifica se a mensagem contém o texto de conta inativa/bloqueada
-                if (mensagemServidor.includes("inativa") || mensagemServidor.includes("contate a administração")) {
-                    setErro("🚫 Sua conta está bloqueada. Por favor, entre em contato com o administrador.");
-                } else if (err.response.status === 401 || mensagemServidor.includes("incorretos")) {
-                    setErro("❌ E-mail ou senha incorretos.");
+            if (err.response && err.response.data) {
+                // O Java mandou o erro da RuntimeException. 
+                // Vamos extrair o texto da mensagem, não importa como ela venha.
+                const erroData = err.response.data;
+                const mensagemTexto = typeof erroData === 'string'
+                    ? erroData
+                    : (erroData.message || JSON.stringify(erroData));
+
+                // Agora sim, procuramos a palavra-chave que você colocou no seu Service.java
+                if (mensagemTexto.includes("inativa") || mensagemTexto.includes("contate")) {
+                    setErro("🚫 Conta Bloqueada: Procure a administração da ONG.");
                 } else {
-                    setErro(mensagemServidor || 'Erro ao realizar login.');
+                    setErro("❌ E-mail ou senha incorretos.");
                 }
             } else {
-                setErro('🌐 Erro de conexão com o servidor (Local/Nuvem).');
+                setErro("🌐 Erro de conexão.");
             }
         }
     };
@@ -113,11 +115,10 @@ const LoginAdmin = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full rounded-lg py-3 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${
-                            loading 
-                            ? 'bg-blue-800 cursor-not-allowed opacity-80' 
+                        className={`w-full rounded-lg py-3 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${loading
+                            ? 'bg-blue-800 cursor-not-allowed opacity-80'
                             : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20'
-                        }`}
+                            }`}
                     >
                         {loading ? (
                             <>

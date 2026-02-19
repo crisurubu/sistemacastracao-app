@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { ArrowLeft, Check, RefreshCw, Loader2, MessageCircle } from 'lucide-react';
 
 // --- CONFIGURAÇÕES DE MENSAGENS (AJUSTADO PARA EVITAR UNDEFINED) ---
-const BASE_URL_LOGIN = "https://sistema-castracao-app.onrender.com";
+const BASE_URL_LOGIN = "https://sistema-castracao-app.onrender.com/admin/login";
 
 const messagesService = {
     gerarLinkWhatsApp: (dados, tipoAcao, mudouSenha = false) => {

@@ -51,7 +51,7 @@ const ExtratoAuditoria = () => {
         return bateTexto && bateData;
     });
 
-    if (loading && extrate.length === 0) return (
+    if (loading && extrato.length === 0) return (
         <div className="p-10 text-center">
             <RefreshCw className="animate-spin mx-auto text-blue-500 mb-4" size={32} />
             <p className="text-slate-400 font-medium animate-pulse">Sincronizando registros financeiros...</p>

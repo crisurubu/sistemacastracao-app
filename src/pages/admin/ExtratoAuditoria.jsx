@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, BarChart3, Clock, Wallet, ShieldCheck, PawPrint, CalendarDays, Eye } from 'lucide-react';
+import { Search, RefreshCw, BarChart3, Clock, ShieldCheck, PawPrint, CalendarDays, Eye } from 'lucide-react';
 import api from '../../services/api';
 
 const ExtratoAuditoria = () => {
@@ -22,7 +22,6 @@ const ExtratoAuditoria = () => {
 
     useEffect(() => { carregarExtrato(); }, []);
 
-    // FUNÇÃO PARA FORMATAR A URL (IGUAL AO COMPONENTE DE PENDENTES)
     const formatarUrlComprovante = (url) => {
         if (!url) return "#";
         if (url.startsWith('http')) return url;
@@ -30,22 +29,29 @@ const ExtratoAuditoria = () => {
         return `${baseUrl}/uploads/${url}`;
     };
 
-    // LÓGICA DE FILTRAGEM (TEXTO + DATA)
     const extratoFiltrado = extrato.filter(p => {
         const termo = filtro.toLowerCase();
-        const dataPagamento = p.dataConfirmacao ? new Date(p.dataConfirmacao).toISOString().split('T')[0] : "";
-        
+        const dataPagamento = p.dataConfirmacao ? p.dataConfirmacao.split('T')[0] : "";
         const nomePet = (p.cadastro?.pet?.nomeAnimal || "").toLowerCase();
-        const nomeAprovador = (p.aprovadorNome || "").toLowerCase();
-        const banco = (p.contaDestino?.banco || "").toLowerCase();
         
-        const bateTexto = nomePet.includes(termo) || nomeAprovador.includes(termo) || banco.includes(termo);
+        // Ajustado para ler do objeto aprovadoPor conforme o log
+        const nomeAprovador = (p.aprovadorNome || p.aprovadoPor?.nome || "").toLowerCase();
+        const cpfAprovador = (p.aprovadoPor?.cpf || "").toLowerCase(); 
+        const banco = (p.contaDestino?.banco || "").toLowerCase();
+        const recebedor = (p.contaDestino?.nomeRecebedor || "").toLowerCase();
+        
+        const bateTexto = nomePet.includes(termo) || 
+                          nomeAprovador.includes(termo) || 
+                          banco.includes(termo) || 
+                          cpfAprovador.includes(termo) ||
+                          recebedor.includes(termo);
+
         const bateData = filtroData === "" || dataPagamento === filtroData;
 
         return bateTexto && bateData;
     });
 
-    if (loading && extrato.length === 0) return (
+    if (loading && extrate.length === 0) return (
         <div className="p-10 text-center">
             <RefreshCw className="animate-spin mx-auto text-blue-500 mb-4" size={32} />
             <p className="text-slate-400 font-medium animate-pulse">Sincronizando registros financeiros...</p>
@@ -54,7 +60,6 @@ const ExtratoAuditoria = () => {
 
     return (
         <div className="mt-8 overflow-hidden rounded-3xl border border-slate-800 bg-[#0f172a] shadow-2xl">
-            {/* Header com Filtros de Texto e Data */}
             <div className="bg-slate-800/30 p-6 border-b border-slate-800 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400 shadow-inner">
@@ -67,23 +72,21 @@ const ExtratoAuditoria = () => {
                 </div>
 
                 <div className="flex flex-col md:flex-row w-full xl:w-auto gap-3">
-                    {/* FILTRO POR DATA */}
                     <div className="relative group">
                         <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
                         <input 
                             type="date"
-                            className="w-full md:w-44 bg-slate-950/50 border border-slate-700 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none"
+                            className="w-full md:w-44 bg-slate-950/50 border border-slate-700 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                             value={filtroData}
                             onChange={(e) => setFiltroData(e.target.value)}
                         />
                     </div>
 
-                    {/* FILTRO POR TEXTO */}
                     <div className="relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
                         <input 
                             type="text"
-                            placeholder="Buscar pet, voluntário..."
+                            placeholder="Buscar pet, voluntário, CPF..."
                             className="w-full md:w-56 bg-slate-950/50 border border-slate-700 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                             value={filtro}
                             onChange={(e) => setFiltro(e.target.value)}
@@ -108,7 +111,7 @@ const ExtratoAuditoria = () => {
                             <th className="px-6 py-4">🐾 Pet & Registro</th>
                             <th className="px-6 py-4">💰 Valor</th>
                             <th className="px-6 py-4">🛡️ Auditoria</th>
-                            <th className="px-6 py-4">🏦 Destino</th>
+                            <th className="px-6 py-4">🏦 Destino PIX</th>
                             <th className="px-6 py-4">📄 Comprovante</th>
                         </tr>
                     </thead>
@@ -134,12 +137,8 @@ const ExtratoAuditoria = () => {
                                         <div className="text-[10px] text-slate-500 font-mono mt-0.5 ml-5">ID: #{p.cadastro?.id}</div>
                                     </td>
 
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-emerald-400 font-black text-base">
-                                                R$ {p.valorContribuicao?.toFixed(2)}
-                                            </span>
-                                        </div>
+                                    <td className="px-6 py-4 text-emerald-400 font-black text-base">
+                                        R$ {p.contaDestino?.valorTaxa?.toFixed(2) || "0.00"}
                                     </td>
 
                                     <td className="px-6 py-4">
@@ -152,16 +151,33 @@ const ExtratoAuditoria = () => {
                                                     {!p.aprovadoPor ? 'SISTEMA' : 'VOLUNTÁRIO'}
                                                 </span>
                                             </div>
-                                            <span className="text-slate-200 font-semibold text-xs">
-                                                {p.aprovadorNome || 'Admin Central'}
-                                            </span>
+                                            <div className="flex flex-col">
+                                                <span className="text-slate-200 font-semibold text-xs italic leading-tight">
+                                                    {p.aprovadorNome || p.aprovadoPor?.nome || 'Admin Central'}
+                                                </span>
+                                                {p.aprovadoPor && (
+                                                    <span className="text-[10px] text-slate-500 font-mono tracking-tight">
+                                                        {p.aprovadoPor.cpf || 'Sem CPF'}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
 
                                     <td className="px-6 py-4">
-                                        <div className="text-slate-300 font-bold text-xs uppercase tracking-tight">{p.contaDestino?.banco || '---'}</div>
-                                        <div className="text-[10px] text-slate-600 font-mono truncate max-w-[120px] mt-0.5">
-                                            {p.contaDestino?.chave}
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="text-slate-100 font-black text-[11px] uppercase tracking-tighter">
+                                                {p.contaDestino?.nomeRecebedor || 'ONG'}
+                                            </div>
+                                            <div className="text-blue-400 font-bold text-[10px] uppercase tracking-tight">
+                                                {p.contaDestino?.banco} ({p.contaDestino?.tipoChave})
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 font-mono leading-none mt-1">
+                                                Chave: {p.contaDestino?.chave}
+                                            </div>
+                                            <div className="text-[9px] text-slate-600 font-mono">
+                                                Ag: {p.contaDestino?.agencia} | C/C: {p.contaDestino?.conta}
+                                            </div>
                                         </div>
                                     </td>
 
@@ -182,7 +198,7 @@ const ExtratoAuditoria = () => {
                                 <td colSpan="6" className="px-6 py-20 text-center">
                                     <div className="text-slate-600 italic flex flex-col items-center gap-2">
                                         <Search size={32} className="opacity-10" />
-                                        Nenhum registro encontrado para estes filtros.
+                                        Nenhum registro encontrado.
                                     </div>
                                 </td>
                             </tr>
@@ -195,3 +211,11 @@ const ExtratoAuditoria = () => {
 };
 
 export default ExtratoAuditoria;
+
+// --- RESUMO DO CÓDIGO ---
+/**
+ * 1. DETALHAMENTO DE DESTINO: A coluna "Destino PIX" agora exibe Nome do Recebedor, Banco, Tipo de Chave, a Chave em si, Agência e Conta.
+ * 2. MAPEAMENTO DINÂMICO: Os dados são extraídos do objeto 'contaDestino' conforme a estrutura vista no console.
+ * 3. IDENTIFICAÇÃO DE VALOR: O valor exibido agora reflete 'contaDestino.valorTaxa' para maior precisão financeira.
+ * 4. BUSCA AMPLIADA: O filtro de pesquisa agora também permite buscar pelo nome do recebedor configurado na conta.
+ */

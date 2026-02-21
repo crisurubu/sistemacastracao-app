@@ -58,7 +58,7 @@ const CadastroVoluntario = () => {
     const [linkWhatsapp, setLinkWhatsapp] = useState(null);
     const [sucessoFinal, setSucessoFinal] = useState(false);
 
-    // Máscaras
+    // Máscaras de Input
     const maskCPF = (v) => v.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
     const maskWhatsApp = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
     const maskCEP = (v) => v.replace(/\D/g, "").replace(/^(\d{5})(\d)/, "$1-$2").replace(/(-\d{3})\d+?$/, "$1");
@@ -111,7 +111,7 @@ const CadastroVoluntario = () => {
                 administrador: { ...prev.administrador, senha: gerarSenhaAleatoria() }
             }));
         }
-    }, [location.state]);
+    }, [location.state, isEdit, formData.administrador.senha]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -156,7 +156,6 @@ const CadastroVoluntario = () => {
 
             await api.post('/admin/voluntarios', payload);
 
-            // Passamos o formData completo para que o serviço ache o objeto administrador
             const link = messagesService.gerarLinkWhatsApp(
                 formData,
                 isEdit ? 'ATUALIZACAO' : 'CADASTRO_NOVO',
@@ -263,10 +262,3 @@ const CadastroVoluntario = () => {
 };
 
 export default CadastroVoluntario;
-
-/**
- * RESUMO DO CÓDIGO:
- * - Correção de Undefined no WhatsApp: O messagesService local foi atualizado com busca inteligente para e-mail e senha.
- * - Sincronização de Dados: O handleSubmit agora envia o estado `formData` completo para o gerador de link.
- * - Consistência na Edição: Adicionada verificação de e-mail na raiz ou em administrador para garantir o preenchimento no modo edição.
- */

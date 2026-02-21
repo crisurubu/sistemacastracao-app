@@ -43,6 +43,7 @@ const AdminSidebar = () => {
     // Busca contagem de alarmes
     useEffect(() => {
         const fetchContagem = async () => {
+            // Se o user ainda não carregou ou é CLINICA, não busca
             if (!user || user.nivelAcesso === 'CLINICA') {
                 setTotalAlarmes(0);
                 return;
@@ -50,7 +51,8 @@ const AdminSidebar = () => {
 
             try {
                 const response = await api.get('/admin/alarmes');
-                setTotalAlarmes(response.data.length);
+                // Assume que a resposta é um array de alarmes
+                setTotalAlarmes(response.data.length || 0);
             } catch (err) {
                 console.error("Erro ao buscar total de alarmes", err);
             }
@@ -58,7 +60,7 @@ const AdminSidebar = () => {
         fetchContagem();
     }, [location.pathname, user]);
 
-    // --- CONFIGURAÇÃO DE MENUS ORGANIZADA ---
+    // --- CONFIGURAÇÃO DE MENUS ---
     const menusCompletos = [
         { 
             icon: <LayoutDashboard size={20}/>, 
@@ -72,7 +74,6 @@ const AdminSidebar = () => {
             path: '/admin/pagamentos', 
             roles: ['MASTER', 'VOLUNTARIO'] 
         },
-        // HISTÓRICO DE VIDA / AUDITORIA
         { 
             icon: <ClipboardList size={20}/>, 
             label: 'Extrato Auditoria', 
@@ -91,7 +92,6 @@ const AdminSidebar = () => {
             path: '/admin/voluntarios', 
             roles: ['MASTER'] 
         },
-        // CONFIGURAÇÃO CRÍTICA (Apenas Master)
         { 
             icon: <Settings2 size={20}/>, 
             label: 'Configurar PIX', 
@@ -125,7 +125,8 @@ const AdminSidebar = () => {
         },
     ];
 
-    const menusVisiveis = menusCompletos.filter(item => item.roles.includes(user?.nivelAcesso));
+    // Filtra menus baseado no nível de acesso do user vindo do Contexto
+    const menusVisiveis = user ? menusCompletos.filter(item => item.roles.includes(user.nivelAcesso)) : [];
 
     return (
         <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-[#0f172a] border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out h-screen sticky top-0`}>
@@ -141,7 +142,7 @@ const AdminSidebar = () => {
                 {!isCollapsed && (
                     <div className="flex flex-col overflow-hidden">
                         <span className="text-blue-500 font-black text-lg tracking-tighter truncate">CENTRAL_ONG</span>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase">{user?.nivelAcesso}</span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase">{user?.nivelAcesso || 'Carregando...'}</span>
                     </div>
                 )}
             </div>

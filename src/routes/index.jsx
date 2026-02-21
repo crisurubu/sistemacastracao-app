@@ -52,6 +52,37 @@ export const router = createBrowserRouter([
         path: "login",
         element: <LoginAdmin />
       },
+      // --- ROTAS FIXAS (PRIORIDADE MÁXIMA PARA EVITAR CONFLITO COM :ID) ---
+      {
+        path: "configuracao-pix", 
+        element: (
+          <PrivateRoute allowedRoles={['MASTER']}>
+            <AdminLayout>
+              <GestaoPix />
+            </AdminLayout>
+          </PrivateRoute>
+        )
+      },
+      {
+        path: "extrato", 
+        element: (
+          <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
+            <AdminLayout>
+              <ExtratoAuditoria />
+            </AdminLayout>
+          </PrivateRoute>
+        )
+      },
+      {
+        path: "alarmes",
+        element: (
+          <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
+            <AdminLayout>
+              <CentralAlarmes />
+            </AdminLayout>
+          </PrivateRoute>
+        )
+      },
       {
         path: "dashboard-clinica", 
         element: (
@@ -102,6 +133,8 @@ export const router = createBrowserRouter([
           </PrivateRoute>
         )
       },
+
+      // --- ROTAS COM FILHOS E PARÂMETROS DINÂMICOS ---
       {
         path: "tutores",
         children: [
@@ -152,13 +185,11 @@ export const router = createBrowserRouter([
           }
         ]
       },
-
-      // --- GESTÃO DE VOLUNTÁRIOS ORGANIZADA ---
       {
         path: "voluntarios",
         children: [
           {
-            path: "", // /admin/voluntarios (Lista de todos)
+            path: "", 
             element: (
               <PrivateRoute allowedRoles={['MASTER']}>
                 <AdminLayout>
@@ -168,7 +199,7 @@ export const router = createBrowserRouter([
             )
           },
           {
-            path: "novo", // /admin/voluntarios/novo (Cadastro)
+            path: "novo", 
             element: (
               <PrivateRoute allowedRoles={['MASTER']}>
                 <AdminLayout>
@@ -178,7 +209,7 @@ export const router = createBrowserRouter([
             )
           },
           {
-            path: ":id", // /admin/voluntarios/123 (Gerenciar/Inativar/WhatsApp)
+            path: ":id", 
             element: (
               <PrivateRoute allowedRoles={['MASTER']}>
                 <AdminLayout>
@@ -188,40 +219,7 @@ export const router = createBrowserRouter([
             )
           }
         ]
-      },
-
-      {
-        path: "alarmes",
-        element: (
-          <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
-            <AdminLayout>
-              <CentralAlarmes />
-            </AdminLayout>
-          </PrivateRoute>
-        )
-      },
-      // --- NOVA ROTA: EXTRATO DE AUDITORIA ---
-      {
-        path: "extrato", // /admin/extrato
-        element: (
-          <PrivateRoute allowedRoles={['MASTER', 'VOLUNTARIO']}>
-            <AdminLayout>
-              <ExtratoAuditoria />
-            </AdminLayout>
-          </PrivateRoute>
-        )
-      },
-      // --- NOVA ROTA: GESTÃO DE PIX (Apenas MASTER pode trocar) ---
-      {
-        path: "configuracao-pix", // /admin/configuracao-pix
-        element: (
-          <PrivateRoute allowedRoles={['MASTER']}>
-            <AdminLayout>
-              <GestaoPix />
-            </AdminLayout>
-          </PrivateRoute>
-        )
-      },
+      }
     ]
   }
 ]);

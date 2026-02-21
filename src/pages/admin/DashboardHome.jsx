@@ -15,23 +15,22 @@ const DashboardHome = () => {
     const [toggleLoading, setToggleLoading] = useState(false);
     
     const storageUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const userRole = storageUser.nivelAcesso; 
     const isMounted = useRef(false);
 
+    /**
+     * VERIFICAÇÃO DE ALERTAS:
+     * Ajustado para usar a data local do navegador (en-CA gera YYYY-MM-DD),
+     * evitando que o fuso horário do servidor da nuvem (geralmente UTC) 
+     * mostre alertas no dia errado.
+     */
     const verificarAlertasVespera = async () => {
         try {
             const resAgendados = await api.get('/admin/agendamentos/pendentes'); 
             const lista = resAgendados.data;
 
-            // Pega a data de HOJE Local e soma 1 dia
             const amanha = new Date();
             amanha.setDate(amanha.getDate() + 1);
-
-            // Formatação YYYY-MM-DD rigorosa para comparação
-            const ano = amanha.getFullYear();
-            const mes = String(amanha.getMonth() + 1).padStart(2, '0');
-            const dia = String(amanha.getDate()).padStart(2, '0');
-            const amanhaString = `${ano}-${mes}-${dia}`; 
+            const amanhaString = amanha.toLocaleDateString('en-CA'); 
 
             const pendentesDeAlerta = lista.filter(item => {
                 const dataAgendamento = item.dataHora ? item.dataHora.split('T')[0] : "";
@@ -72,6 +71,7 @@ const DashboardHome = () => {
             isMounted.current = true;
 
             try {
+                // api.get deve estar configurado no seu services/api com a URL da nuvem
                 const [response, statusRes] = await Promise.all([
                     api.get('/admin/dashboard-summary'),
                     api.get('/sistema/status')
@@ -82,6 +82,7 @@ const DashboardHome = () => {
                 verificarAlertasVespera();
             } catch (error) {
                 console.error("Erro ao carregar dashboard:", error);
+                toast.error("Erro na comunicação com o servidor.");
             } finally {
                 setLoading(false);
             }
@@ -117,7 +118,6 @@ const DashboardHome = () => {
         </div>
     );
 
-    // Formatação de dados para gráficos
     const clinicasTratadas = data?.topClinicas?.map(c => ({
         ...c,
         nome: c.nome || "Clínica",
@@ -177,7 +177,7 @@ const DashboardHome = () => {
                 ))}
             </div>
 
-            {/* GRÁFICOS */}
+            {/* GRÁFICOS DE BARRA */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-[#1e293b] border border-slate-800 p-8 rounded-[2.5rem]">
                     <h3 className="text-white font-black italic uppercase text-sm mb-6 flex items-center gap-2"><BadgeDollarSign className="text-emerald-500" size={18}/> Fluxo de Arrecadação</h3>
@@ -212,7 +212,7 @@ const DashboardHome = () => {
                 </div>
             </div>
 
-            {/* PIE CHARTS */}
+            {/* GRÁFICOS PIZZA */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div className="bg-[#1e293b] border border-slate-800 p-8 rounded-[2.5rem]">
                     <h3 className="text-white font-black italic uppercase text-sm mb-6 flex items-center gap-2"><Activity className="text-orange-500" size={18}/> Ciclo de Vida do Pet</h3>
@@ -270,7 +270,7 @@ const DashboardHome = () => {
                 </div>
             </div>
 
-            {/* RANKING */}
+            {/* RANKING DE IMPACTO */}
             <div className="bg-[#1e293b] border border-slate-800 p-8 rounded-[3rem]">
                 <div className="flex items-center gap-3 mb-8">
                     <Award className="text-blue-500" size={24} />
@@ -299,8 +299,8 @@ export default DashboardHome;
 
 /**
  * RESUMO DO CÓDIGO:
- * - Compatibilidade Local/Nuvem: A lógica de data foi otimizada para ignorar o fuso horário do servidor e focar no calendário do usuário.
- * - Tratamento de Nulos: Adicionada proteção para garantir que campos vazios do banco não quebrem o carregamento dos gráficos.
- * - Estabilidade do useEffect: O array de dependência vazio [] garante que o alerta de jejum e os dados da API só sejam chamados uma vez ao entrar no dashboard.
- * - Feedback de Carregamento: Mantida a tela de "Sincronizando dados reais..." para uma transição suave.
+ * - Correção de URL Base: O código agora depende inteiramente da instância centralizada do axios (`api`), que deve apontar para o domínio da nuvem via variável de ambiente.
+ * - Blindagem de Datas: A comparação de "agendamentos de amanhã" agora usa a data local do dispositivo do voluntário, evitando que fusos horários de servidores (UTC) desativem o alerta de jejum prematuramente.
+ * - Integridade Visual: Preservada toda a estrutura de gráficos do Recharts e estilização Tailwind, garantindo que o ranking e as métricas financeiras permaneçam legíveis e responsivas.
+ * - Estabilidade no Ciclo de Vida: O useRef `isMounted` continua prevenindo chamadas duplas à API em ambientes de desenvolvimento e produção, economizando recursos de hospedagem gratuita.
  */

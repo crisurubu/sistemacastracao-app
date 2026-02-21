@@ -1,22 +1,32 @@
 import { Navigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext'; // Ajuste o caminho conforme sua pasta
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-    const userJson = localStorage.getItem('user');
-    const user = userJson ? JSON.parse(userJson) : null;
+    // Pegamos o user e o loading do nosso contexto global
+    const { user, loading } = useContext(AuthContext);
 
-    // 1. Se não estiver logado, manda para o login
+    // 1. Enquanto o context está recuperando o usuário do localStorage (no useEffect),
+    // exibimos um nada ou um spinner para evitar redirecionamento falso
+    if (loading) {
+        return null; // Ou um <Loader />
+    }
+
+    // 2. Se não estiver logado (user null), manda para o login
     if (!user) {
         return <Navigate to="/login" replace />;
     }
 
-    // 2. Se o nível de acesso não estiver na lista de permitidos, bloqueia
+    // 3. Se o nível de acesso não estiver na lista de permitidos, bloqueia
+    // Note que não precisamos mais de JSON.parse aqui, o context já nos dá o objeto pronto
     if (allowedRoles && !allowedRoles.includes(user.nivelAcesso)) {
-        // Se for clínica tentando entrar em rota master, manda para agenda dela
+        // Redirecionamentos inteligentes baseados no cargo
         if (user.nivelAcesso === 'CLINICA') return <Navigate to="/clinica/agenda" />;
-        // Se for voluntário tentando entrar em gestão de clínicas, manda para home
+        
         return <Navigate to="/admin/dashboard" />;
     }
 
+    // Se passou por tudo, renderiza a página protegida
     return children;
 };
 

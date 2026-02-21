@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-// IMPORTANTE: Trocamos o axios puro pela sua instância configurada
 import api from "../../services/api"; 
 import { CheckCircle, Clock, User, PawPrint, MessageCircle } from 'lucide-react';
 
@@ -10,7 +9,7 @@ const AgendaClinica = () => {
 
     const carregarAgenda = async () => {
         try {
-            // MUDANÇA: 'api.get' já cuida da URL do Render e do Token automaticamente
+            // A instância 'api' já injeta o Token e a URL base automaticamente
             const response = await api.get('/clinica/meus-agendamentos');
             
             setAgendamentos(response.data.agendamentos);
@@ -30,12 +29,11 @@ const AgendaClinica = () => {
         if (!window.confirm("Confirmar a realização deste procedimento?")) return;
 
         try {
-            // MUDANÇA: Removido localhost e headers manuais. 
-            // O interceptor do api.js injeta o Bearer Token sozinho.
+            // Chamada PATCH para atualizar o status do agendamento
             await api.patch(`/clinica/concluir-procedimento/${id}`, {});
             
             alert("Procedimento registrado com sucesso!");
-            carregarAgenda(); 
+            carregarAgenda(); // Recarrega para atualizar o contador de mérito e a lista
         } catch (error) {
             alert("Erro ao registrar conclusão.");
         }
@@ -45,7 +43,7 @@ const AgendaClinica = () => {
 
     return (
         <div className="p-6 space-y-6">
-            {/* CABEÇALHO COM MÉRITO */}
+            {/* CABEÇALHO COM MÉRITO (Selo de Parceiro) */}
             <div className="bg-[#1e293b] border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Olá, {clinicaInfo?.nome}!</h1>
@@ -68,7 +66,7 @@ const AgendaClinica = () => {
                 </div>
             </div>
 
-            {/* LISTA DE AGENDAMENTOS */}
+            {/* LISTA DE AGENDAMENTOS EM GRID */}
             <div className="grid grid-cols-1 gap-4">
                 {agendamentos.length > 0 ? (
                     agendamentos.map((ag) => (

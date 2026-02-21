@@ -6,14 +6,21 @@ const NavbarPublica = () => {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
 
     useEffect(() => {
+        // Atualiza o relógio a cada segundo
         const timer = setInterval(() => setDataHora(new Date()), 1000);
         
-        window.addEventListener('beforeinstallprompt', (e) => {
+        // Captura o evento de instalação do PWA
+        const handleBeforeInstallPrompt = (e) => {
             e.preventDefault();
             setDeferredPrompt(e);
-        });
+        };
 
-        return () => clearInterval(timer);
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
     }, []);
 
     const handleInstall = async () => {
@@ -28,7 +35,7 @@ const NavbarPublica = () => {
         <nav className="nav-public">
             <div className="nav-brand">
                 <span className="nav-emoji">🐾</span>
-                {/* Adicionado translate="no" para impedir que o Google mude o nome da ONG */}
+                {/* translate="no" impede que o Google mude o nome da ONG */}
                 <div className="nav-title-group" translate="no">
                     <span className="nav-main-title">Mutirão de Castração</span>
                     <span className="nav-subtitle">ONG Tatuí-SP</span>

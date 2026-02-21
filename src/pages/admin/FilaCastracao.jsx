@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Phone, Calendar, Loader2, X, MapPin, Clock, User, PawPrint, Search } from 'lucide-react';
+import { CheckCircle2, Phone, Calendar, Loader2, X, MapPin, Clock, User, PawPrint, Search, Mail } from 'lucide-react';
 import api from '../../services/api';
 
 const FilaCastracao = () => {
@@ -10,7 +10,7 @@ const FilaCastracao = () => {
     const [dadosAgendamento, setDadosAgendamento] = useState({ data: '', hora: '', clinicaId: '' });
     const [submitting, setSubmitting] = useState(false);
     const [clinicas, setClinicas] = useState([]);
-    const [filtro, setFiltro] = useState(""); // NOVO ESTADO PARA FILTRO
+    const [filtro, setFiltro] = useState("");
 
     useEffect(() => { fetchFila(); }, []);
 
@@ -18,10 +18,13 @@ const FilaCastracao = () => {
         try {
             const response = await api.get('/admin/fila-espera');
             setFila(response.data);
-        } catch (error) { console.error(error); } finally { setLoading(false); }
+        } catch (error) { 
+            console.error("Erro ao buscar fila:", error); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
-    // LÓGICA DE FILTRAGEM
     const filaFiltrada = fila.filter(item => {
         const termo = filtro.toLowerCase();
         const nomePet = (item.pet?.nomeAnimal || "").toLowerCase();
@@ -32,8 +35,11 @@ const FilaCastracao = () => {
     const carregarClinicas = async () => {
         try {
             const response = await api.get('/admin/clinicas');
+            // Filtra apenas clínicas ativas
             setClinicas(response.data.filter(c => c.administrador?.ativo));
-        } catch (error) { console.error(error); }
+        } catch (error) { 
+            console.error("Erro ao carregar clínicas:", error); 
+        }
     };
 
     const handleAbrirAgendamento = (item) => {
@@ -45,8 +51,10 @@ const FilaCastracao = () => {
 
     const confirmarAgendamento = async () => {
         if (!dadosAgendamento.data || !dadosAgendamento.hora || !dadosAgendamento.clinicaId) {
-            alert("Preencha todos os campos do agendamento!"); return;
+            alert("Preencha todos os campos do agendamento!"); 
+            return;
         }
+
         setSubmitting(true);
         try {
             const payload = {
@@ -62,31 +70,35 @@ const FilaCastracao = () => {
             const localAgendamento = agendamento.local;
 
             if (!hashReal) {
-                throw new Error("Erro: O backend não retornou o códigoHash.");
+                throw new Error("O servidor não gerou o código HASH necessário para a clínica.");
             }
 
             const [ano, mes, dia] = dadosAgendamento.data.split('-');
             const dataHoraFormatada = `${dia}/${mes}/${ano} às ${dadosAgendamento.hora}`;
 
+            // Mensagem personalizada incluindo os dados da ONG salvos nas instruções
             const corpoEmail = 
-                `Olá, ${selectedItem.tutor?.nome}!\n\n` +
-                `Agendamento confirmado para o(a) ${selectedItem.pet?.nomeAnimal}.\n\n` +
-                `📅 DATA/HORA: ${dataHoraFormatada}\n` +
-                `📍 LOCAL: ${localAgendamento}\n` +
-                `🔑 HASH: ${hashReal}\n\n` +
+                `*AGENDAMENTO DE CASTRAÇÃO - SISTEMA CASTRACAO ONG*\n\n` +
+                `Olá, ${selectedItem.tutor?.nome}!\n` +
+                `O agendamento para o(a) *${selectedItem.pet?.nomeAnimal}* foi confirmado.\n\n` +
+                `📅 *DATA/HORA:* ${dataHoraFormatada}\n` +
+                `📍 *LOCAL:* ${localAgendamento}\n` +
+                `🔑 *CÓDIGO HASH (Apresentar na clínica):* ${hashReal}\n\n` +
+                `_Dúvidas? Entre em contato: sistemacastracao@gmail.com_\n` +
                 `Até breve!`;
             
             const linkWhatsapp = `https://wa.me/55${selectedItem.tutor?.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent(corpoEmail)}`;
 
+            // Remove da fila local apenas após sucesso
             setFila(fila.filter(f => f.id !== selectedItem.id));
             setShowModal(false);
             
             window.open(linkWhatsapp, '_blank');
-            alert("Agendamento realizado! WhatsApp gerado com base no sistema.");
+            alert("Agendamento realizado com sucesso! O Hash de validação foi gerado.");
             
         } catch (error) { 
             console.error("Erro no fluxo de agendamento:", error);
-            alert(error.message || "Erro ao processar agendamento."); 
+            alert(error.response?.data?.message || error.message || "Erro ao processar agendamento."); 
         } finally { 
             setSubmitting(false); 
         }
@@ -112,7 +124,8 @@ const FilaCastracao = () => {
     );
 
     return (
-        <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans">
+        <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans text-slate-200">
+            {/* Cabeçalho e Busca */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-800 pb-8">
                 <div className="flex-1 w-full">
                     <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
@@ -120,7 +133,6 @@ const FilaCastracao = () => {
                     </h1>
                     <p className="text-slate-400 mt-2 font-medium mb-6">Controle de animais prontos para encaminhamento.</p>
                     
-                    {/* CAMPO DE BUSCA ADICIONADO */}
                     <div className="relative max-w-md">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                         <input 
@@ -144,6 +156,7 @@ const FilaCastracao = () => {
                 </div>
             </div>
 
+            {/* Tabela de Fila */}
             <div className="bg-slate-900/50 rounded-3xl border border-slate-800 overflow-hidden backdrop-blur-md shadow-2xl">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -159,7 +172,7 @@ const FilaCastracao = () => {
                             {filaFiltrada.length === 0 ? (
                                 <tr>
                                     <td colSpan="4" className="p-20 text-center text-slate-500 italic">
-                                        Nenhum registro encontrado na fila.
+                                        Nenhum registro encontrado na fila de espera.
                                     </td>
                                 </tr>
                             ) : filaFiltrada.map((item) => (
@@ -217,7 +230,7 @@ const FilaCastracao = () => {
                 </div>
             </div>
 
-            {/* MODAL PERMANECE IGUAL */}
+            {/* Modal de Agendamento */}
             {showModal && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 border border-slate-700/50 p-8 rounded-[2.5rem] w-full max-w-md shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] relative overflow-hidden">
@@ -241,21 +254,24 @@ const FilaCastracao = () => {
                                 <div className="space-y-2">
                                     <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Data</label>
                                     <input type="date" className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        value={dadosAgendamento.data}
                                         onChange={(e) => setDadosAgendamento({...dadosAgendamento, data: e.target.value})} />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Horário</label>
                                     <input type="time" className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        value={dadosAgendamento.hora}
                                         onChange={(e) => setDadosAgendamento({...dadosAgendamento, hora: e.target.value})} />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Clínica Executora (Mérito)</label>
+                                <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-1">Clínica Executora (Parceria)</label>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
                                     <select 
                                         className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer font-medium"
+                                        value={dadosAgendamento.clinicaId}
                                         onChange={(e) => setDadosAgendamento({...dadosAgendamento, clinicaId: e.target.value})}
                                     >
                                         <option value="">Selecione a parceira...</option>

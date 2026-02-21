@@ -43,7 +43,7 @@ const CentralAlarmes = () => {
                 <p className="text-slate-400 text-sm">Monitoramento em tempo real da operação e financeiro.</p>
             </div>
 
-            {/* BOX DE INSTRUÇÕES */}
+            {/* BOX DE INSTRUÇÕES - Protocolo de Auditoria */}
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 flex gap-4">
                 <div className="bg-blue-500/10 p-3 rounded-xl h-fit">
                     <Info className="text-blue-400" size={24} />
@@ -120,7 +120,6 @@ const CentralAlarmes = () => {
                                                 {badgeLabel}
                                             </span>
 
-                                            {/* CORREÇÃO DO N/A NO RESPONSÁVEL */}
                                             {alerta.responsavel && alerta.responsavel !== 'N/A' && (
                                                 <>
                                                     <span className="text-slate-700">|</span>
@@ -128,7 +127,6 @@ const CentralAlarmes = () => {
                                                 </>
                                             )}
 
-                                            {/* CORREÇÃO DO N/A NO TUTOR */}
                                             {alerta.tutor && alerta.tutor !== 'N/A' && (
                                                 <>
                                                     <span className="text-slate-700">|</span>
@@ -136,7 +134,6 @@ const CentralAlarmes = () => {
                                                 </>
                                             )}
 
-                                            {/* MENSAGEM AUXILIAR PARA FILA SEM DADOS INDIVIDUAIS */}
                                             {isFilaCritica && (!alerta.tutor || alerta.tutor === 'N/A') && (
                                                 <>
                                                     <span className="text-slate-700">|</span>

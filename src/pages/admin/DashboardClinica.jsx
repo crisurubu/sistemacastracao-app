@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PawPrint, CheckCircle, FileText, TrendingUp, Clock, Loader2, ListChecks, ShieldCheck, Hash, User, MessageCircle, Settings, BarChart3 } from 'lucide-react';
+import { Search, PawPrint, CheckCircle, FileText, TrendingUp, Clock, Loader2, ListChecks, ShieldCheck, Hash, User, MessageCircle, Settings, Calendar } from 'lucide-react';
 import api from '../../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { gerarGuiaCastracao } from '../../utils/GeradorPDF';
@@ -7,19 +7,21 @@ import ModalAlterarSenha from './ModalAlterarSenha';
 
 const DashboardClinica = () => {
     const [agendamentosHoje, setAgendamentosHoje] = useState([]);
-    const [stats, setStats] = useState({ totalVidas: 0, medalha: 'INICIANTE', nomeClinica: 'Carregando...' });
+    const [stats, setStats] = useState({ 
+        totalVidas: 0, 
+        medalha: 'INICIANTE', 
+        nomeClinica: 'Carregando...',
+        dataCadastro: null // Novo campo para auditoria
+    });
     const [buscaHash, setBuscaHash] = useState('');
     const [dadosHash, setDadosHash] = useState(null);
     const [loading, setLoading] = useState(true);
     const [erroHash, setErroHash] = useState(false);
     const [modalSenhaAberto, setModalSenhaAberto] = useState(false);
 
-    // ESTADO DO GRÁFICO REALISTA - COMEÇA NO CHÃO (ZERO)
     const [dadosGraficoImpacto, setDadosGraficoImpacto] = useState([
-        { name: 'Jan', qtd: 0 },
-        { name: 'Fev', qtd: 0 },
-        { name: 'Mar', qtd: 0 },
-        { name: 'Abr', qtd: 0 },
+        { name: 'Jan', qtd: 0 }, { name: 'Fev', qtd: 0 },
+        { name: 'Mar', qtd: 0 }, { name: 'Abr', qtd: 0 },
     ]);
 
     const metaSuperior = stats.totalVidas < 10 ? 10 : stats.totalVidas + 5;
@@ -33,22 +35,22 @@ const DashboardClinica = () => {
             setStats({
                 totalVidas: res.data.totalVidas || 0, 
                 medalha: res.data.selo || 'INICIANTE',
-                nomeClinica: res.data.nomeClinica || 'Clínica Parceira'
+                nomeClinica: res.data.nomeClinica || 'Clínica Parceira',
+                dataCadastro: res.data.dataCadastro // Certifique-se que o backend envia este campo
             });
 
-            // Lógica para preencher o gráfico com dados reais do banco
             if (res.data.pontosGrafico && res.data.pontosGrafico.length > 0) {
                 setDadosGraficoImpacto(res.data.pontosGrafico);
-            } else {
-                // Se o banco não enviar o histórico, ele mapeia o totalVidas apenas para o mês atual
-                const mesAtual = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date()).replace('.', '');
-                setDadosGraficoImpacto(prev => prev.map(p => 
-                    p.name.toLowerCase() === mesAtual.toLowerCase() 
-                    ? { ...p, qtd: res.data.totalVidas || 0 } 
-                    : p
-                ));
             }
         } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const formatarDataParceria = (dataISO) => {
+        if (!dataISO) return "---";
+        return new Date(dataISO).toLocaleDateString('pt-BR', {
+            month: 'long',
+            year: 'numeric'
+        });
     };
 
     const verificarHash = async () => {
@@ -92,8 +94,17 @@ const DashboardClinica = () => {
 
     return (
         <div className="p-6 bg-slate-950 min-h-screen space-y-8 font-sans text-slate-200">
-            {/* HEADER */}
-            <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-slate-900/40 p-8 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden">
+            {/* HEADER - BOAS VINDAS E DATA DE CADASTRO */}
+            <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-slate-900/40 p-8 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden relative">
+                
+                {/* Badge Flutuante de Data de Cadastro */}
+                <div className="absolute top-0 right-0 bg-emerald-500/10 border-b border-l border-slate-800 px-6 py-2 rounded-bl-3xl hidden lg:flex items-center gap-2">
+                    <Calendar size={12} className="text-emerald-500" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Ajudando desde <span className="text-emerald-500">{formatarDataParceria(stats.dataCadastro)}</span>
+                    </span>
+                </div>
+
                 <div className="flex-1">
                     <div className="flex items-center gap-4">
                         <h1 className="text-4xl font-black text-white italic tracking-tighter">
@@ -105,8 +116,14 @@ const DashboardClinica = () => {
                     </div>
                     <p className="text-slate-400 mt-2">
                         Total de <span className="text-emerald-500 text-3xl font-black px-1">{stats.totalVidas}</span> 
-                        vidas salvas com a <span className="text-white font-bold italic underline decoration-emerald-500">ONG Sistema Castração</span>.
+                        vidas salvas com a <span className="text-white font-bold italic underline decoration-emerald-500 uppercase">Sistema Castração ONG</span>.
                     </p>
+                    
+                    {/* Exibição Mobile da Data */}
+                    <div className="lg:hidden mt-4 flex items-center gap-2 bg-slate-950/50 w-fit px-4 py-1 rounded-full border border-slate-800">
+                        <Calendar size={12} className="text-emerald-500" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Parceiro desde {formatarDataParceria(stats.dataCadastro)}</span>
+                    </div>
                 </div>
                 <div className="shrink-0 z-10">
                     {renderMedalhaBD(stats.medalha)}
@@ -114,7 +131,7 @@ const DashboardClinica = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* BUSCA POR HASH */}
+                {/* VALIDADOR DE HASH */}
                 <div className={`bg-slate-900/60 border ${erroHash ? 'border-red-500' : 'border-slate-800'} p-8 rounded-[3rem] shadow-xl`}>
                     <h2 className="text-lg font-black text-white mb-4 uppercase flex items-center gap-2"><ShieldCheck className="text-emerald-500"/> Validar Comprovante</h2>
                     <div className="flex gap-2">
@@ -130,7 +147,7 @@ const DashboardClinica = () => {
                     )}
                 </div>
 
-                {/* GRÁFICO REALISTA - TIPO SETA/DEGRAU */}
+                {/* GRÁFICO DE IMPACTO */}
                 <div className="bg-slate-900/60 border border-slate-800 p-8 rounded-[3rem] shadow-xl">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-black text-white uppercase flex items-center gap-2">
@@ -138,7 +155,6 @@ const DashboardClinica = () => {
                         </h2>
                         <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-tighter">Meta: {metaSuperior} Vidas</span>
                     </div>
-                    
                     <div className="h-40 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={dadosGraficoImpacto} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -152,21 +168,14 @@ const DashboardClinica = () => {
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 'bold'}} />
                                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
                                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderRadius: '15px', border: '1px solid #334155', color: '#fff' }} />
-                                <Area 
-                                    type="stepAfter" // Mostra a subida real como uma escada/seta
-                                    dataKey="qtd" 
-                                    stroke="#10b981" 
-                                    strokeWidth={4} 
-                                    fillOpacity={1} 
-                                    fill="url(#colorReal)" 
-                                />
+                                <Area type="stepAfter" dataKey="qtd" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorReal)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             </div>
 
-            {/* FILA DE ATENDIMENTO */}
+            {/* FILA DE ATENDIMENTO DO DIA */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-[3rem] p-8 shadow-2xl">
                 <h2 className="text-2xl font-black text-white italic mb-8 flex items-center gap-3"><ListChecks className="text-emerald-500" /> Fila de Atendimento</h2>
                 {agendamentosHoje.length > 0 ? (
@@ -216,3 +225,11 @@ const DashboardClinica = () => {
 };
 
 export default DashboardClinica;
+
+/**
+ * RESUMO DO CÓDIGO:
+ * 1. Auditoria de Parceria: Adicionado o campo 'dataCadastro' no estado inicial e no fetch.
+ * 2. Header Informativo: Inserido um badge discreto no canto superior direito do header ("Ajudando desde...").
+ * 3. Formatação: Função 'formatarDataParceria' transforma a data em um formato amigável (ex: "fevereiro de 2026").
+ * 4. Responsividade: No mobile, a data de parceria aparece abaixo do texto de boas-vindas para não quebrar o layout.
+ */

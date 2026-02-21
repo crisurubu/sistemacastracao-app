@@ -1,7 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
-// IMPORTANTE: Importar a instância da API que criamos
 import api from '../../../services/api';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -26,14 +25,12 @@ const LoginAdmin = () => {
         };
 
         try {
-            // MUDANÇA: Usando api.post em vez de fetch com URL fixa
-            // O caminho agora é apenas '/auth/login', a base vem do api.js
+            // Chamada para o backend Java
             const response = await api.post('/auth/login', loginData);
-
-            // No Axios, os dados vêm direto no .data
             const data = response.data;
 
-            login(data.user, data.token);
+            // Sucesso: Contexto armazena o usuário e redireciona
+            login(data.user);
 
             if (data.user.nivelAcesso === 'CLINICA') {
                 navigate('/admin/dashboard-clinica');
@@ -42,23 +39,20 @@ const LoginAdmin = () => {
             }
         } catch (err) {
             setLoading(false);
-
+            
+            // TRATAMENTO DE ERRO BLINDADO
             if (err.response && err.response.data) {
-                // O Java mandou o erro da RuntimeException. 
-                // Vamos extrair o texto da mensagem, não importa como ela venha.
-                const erroData = err.response.data;
-                const mensagemTexto = typeof erroData === 'string'
-                    ? erroData
-                    : (erroData.message || JSON.stringify(erroData));
+                const respostaServidor = err.response.data;
 
-                // Agora sim, procuramos a palavra-chave que você colocou no seu Service.java
-                if (mensagemTexto.includes("inativa") || mensagemTexto.includes("contate")) {
-                    setErro("🚫 Conta Bloqueada: Procure a administração da ONG.");
+                // Se o Java retornar um objeto como { message: "..." } ou { erro: "..." }
+                if (typeof respostaServidor === 'object') {
+                    setErro(respostaServidor.message || respostaServidor.erro || "Falha na autenticação");
                 } else {
-                    setErro("❌ E-mail ou senha incorretos.");
+                    // Se o Java retornar apenas a string pura
+                    setErro(String(respostaServidor));
                 }
             } else {
-                setErro("🌐 Erro de conexão.");
+                setErro('Não foi possível conectar ao servidor da ONG.');
             }
         }
     };
@@ -66,14 +60,16 @@ const LoginAdmin = () => {
     return (
         <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 p-4">
             <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8 shadow-2xl border border-slate-800">
+                
                 <div className="mb-8 text-center">
                     <h2 className="text-3xl font-bold text-white">Sistema Castração</h2>
                     <p className="mt-2 text-blue-400 font-medium uppercase text-xs tracking-widest">Área Administrativa</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* EXIBIÇÃO DA MENSAGEM DE ERRO (E-mail inválido, Bloqueado, etc) */}
                     {erro && (
-                        <div className="rounded-lg bg-red-500/10 p-3 text-center text-sm text-red-500 border border-red-500/50">
+                        <div className="rounded-lg bg-red-500/10 p-3 text-center text-sm text-red-500 border border-red-500/50 font-bold animate-pulse">
                             {erro}
                         </div>
                     )}
@@ -85,7 +81,7 @@ const LoginAdmin = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="sistemacastracao@gmail.com"
-                            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                             required
                         />
                     </div>
@@ -98,7 +94,7 @@ const LoginAdmin = () => {
                                 value={senha}
                                 onChange={(e) => setSenha(e.target.value)}
                                 placeholder="••••••••"
-                                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                                 required
                             />
                             <button
@@ -115,10 +111,11 @@ const LoginAdmin = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full rounded-lg py-3 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${loading
-                            ? 'bg-blue-800 cursor-not-allowed opacity-80'
-                            : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20'
-                            }`}
+                        className={`w-full rounded-lg py-3 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${
+                            loading
+                                ? 'bg-blue-800 cursor-not-allowed opacity-80'
+                                : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-900/20'
+                        }`}
                     >
                         {loading ? (
                             <>
@@ -130,9 +127,17 @@ const LoginAdmin = () => {
                         )}
                     </button>
                 </form>
+
+                <div className="mt-8 text-center">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold">
+                        Sistema Castracao ong © 2026
+                    </p>
+                </div>
             </div>
         </div>
     );
 };
 
 export default LoginAdmin;
+
+// RESUMO DO CÓDIGO: Realiza a autenticação administrativa via Axios, tratando as respostas do backend para armazenar o estado global de login e redirecionar conforme o nível de acesso (CLINICA ou outros). Inclui tratamento rigoroso de erros para converter objetos JSON de erro em strings legíveis na interface.

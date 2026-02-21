@@ -1,33 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
-import { ArrowLeft, Check, RefreshCw, Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Check, RefreshCw, Loader2, MessageCircle, MapPin } from 'lucide-react';
+import axios from 'axios'; // Para o ViaCEP
 
-// --- CONFIGURAÇÕES DE MENSAGENS (AJUSTADO PARA EVITAR UNDEFINED) ---
 const BASE_URL_LOGIN = "https://sistema-castracao-app.onrender.com/admin/login";
 
+// --- SERVIÇO DE MENSAGENS (Mantido) ---
 const messagesService = {
     gerarLinkWhatsApp: (dados, tipoAcao, mudouSenha = false) => {
         let texto = "";
         const saudacao = `Olá *${dados.nome}*! 🏥`;
         const rodape = `\n\n_Equipe Sistema Castração_`;
-
-        // EXTRAÇÃO INTELIGENTE: Busca na raiz ou dentro de administrador
-        const emailFinal = dados.email || (dados.administrador && dados.administrador.email);
-        const senhaFinal = dados.senha || (dados.administrador && dados.administrador.senha);
+        const emailFinal = dados.administrador?.email || dados.email;
+        const senhaFinal = dados.administrador?.senha || dados.senha;
 
         if (tipoAcao === 'CADASTRO_NOVO') {
             texto = `${saudacao}\n\nÉ uma honra ter sua clínica como parceira! Seu acesso ao painel foi liberado.\n\n📧 *LOGIN:* ${emailFinal}\n🔑 *SENHA:* ${senhaFinal}\n🔗 *ACESSO:* ${BASE_URL_LOGIN}${rodape}`;
         } else if (tipoAcao === 'ATUALIZACAO') {
-            const infoSenha = mudouSenha 
-                ? `🔑 *NOVA SENHA:* ${senhaFinal}` 
-                : `🔑 *SENHA:* (Mantida a anterior)`;
-                
+            const infoSenha = mudouSenha ? `🔑 *NOVA SENHA:* ${senhaFinal}` : `🔑 *SENHA:* (Mantida a anterior)`;
             texto = `${saudacao}\n\nSeus dados de acesso foram atualizados.\n\n📧 *LOGIN:* ${emailFinal}\n${infoSenha}\n🌐 *LINK:* ${BASE_URL_LOGIN}${rodape}`;
         }
-        
         if (!texto) return null;
-        // Garante que limpa o telefone para o link wa.me
         const foneLimpo = (dados.telefone || "").replace(/\D/g, '');
         return `https://wa.me/55${foneLimpo}?text=${encodeURIComponent(texto)}`;
     }
@@ -37,12 +31,19 @@ const CadastroClinica = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
+    // --- ESTADO INICIAL COM CAMPOS ESTRUTURADOS ---
     const estadoInicial = {
         nome: '',
         cnpj: '',
         crmvResponsavel: '',
         telefone: '',
-        endereco: '',
+        // Novos campos de endereço:
+        cep: '',
+        logradouro: '',
+        numero: '',
+        bairro: '',
+        cidade: 'Tatuí',
+        estado: 'SP',
         administrador: { email: '', senha: '' }
     };
 
@@ -58,12 +59,37 @@ const CadastroClinica = () => {
     // Máscaras
     const maskCNPJ = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2").replace(/(-\d{2})\d+?$/, "$1");
     const maskTelefone = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
+    const maskCEP = (v) => v.replace(/\D/g, "").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{3})\d+?$/, "$1");
 
     const gerarSenhaAleatoria = () => {
         const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let senha = '';
         for (let i = 0; i < 8; i++) senha += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
         return senha;
+    };
+
+    // --- BUSCA CEP ---
+    const handleCEPBlur = async () => {
+        const cepLimpo = formData.cep.replace(/\D/g, '');
+        if (cepLimpo.length !== 8) return;
+
+        try {
+            const res = await axios.get(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+            if (!res.data.erro) {
+                setFormData(prev => ({
+                    ...prev,
+                    logradouro: res.data.logradouro,
+                    bairro: res.data.bairro,
+                    cidade: res.data.localidade,
+                    estado: res.data.uf
+                }));
+                setErro("");
+            } else {
+                setErro("⚠️ CEP não encontrado.");
+            }
+        } catch (err) {
+            setErro("❌ Erro ao buscar CEP.");
+        }
     };
 
     useEffect(() => {
@@ -74,6 +100,7 @@ const CadastroClinica = () => {
                 ...c,
                 cnpj: maskCNPJ(c.cnpj),
                 telefone: maskTelefone(c.telefone || ''),
+                cep: maskCEP(c.cep || ''),
                 crmvResponsavel: (c.crmvResponsavel || '').toUpperCase(),
                 administrador: {
                     email: (c.administrador?.email || c.email || '').toLowerCase(),
@@ -95,8 +122,15 @@ const CadastroClinica = () => {
 
         if (name === "cnpj") val = maskCNPJ(value);
         if (name === "telefone") val = maskTelefone(value);
+        if (name === "cep") val = maskCEP(value);
         if (name === "crmvResponsavel") val = value.toUpperCase();
-        if (name === "nome" || name === "endereco") val = value.replace(/\b\w/g, (l) => l.toUpperCase());
+        
+       // --- JEITO CERTO NO REACT ---
+if (["nome", "logradouro", "bairro", "cidade"].includes(name)) {
+    // Apenas garante que a primeira letra da frase seja maiúscula 
+    // ou use uma lógica que não quebre com acentos
+    val = value.charAt(0).toUpperCase() + value.slice(1);
+}
 
         if (name === "email" || name === "senha") {
             const finalVal = name === "email" ? val.toLowerCase().trim() : val;
@@ -106,6 +140,7 @@ const CadastroClinica = () => {
         }
     };
 
+    // --- VERIFICAÇÃO INTELIGENTE POR CNPJ ---
     const verificarCnpjESeguir = async () => {
         const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
         if (cnpjLimpo.length < 14) return setErro("⚠️ Informe um CNPJ completo.");
@@ -123,6 +158,7 @@ const CadastroClinica = () => {
                     ...c,
                     cnpj: maskCNPJ(c.cnpj),
                     telefone: maskTelefone(c.telefone || ''),
+                    cep: maskCEP(c.cep || ''),
                     administrador: { email: (c.administrador?.email || '').toLowerCase(), senha: '' }
                 });
                 setMensagemInfo("ℹ️ Clínica encontrada! Modo de edição ativado.");
@@ -134,18 +170,19 @@ const CadastroClinica = () => {
 
     const handleSubmit = async () => {
         if (!formData.administrador.email.includes('@')) return setErro("⚠️ E-mail inválido.");
+        if (!formData.cep || !formData.logradouro) return setErro("⚠️ Preencha o endereço corretamente.");
         
         setLoading(true);
         try {
             const payload = {
                 ...formData,
                 cnpj: formData.cnpj.replace(/\D/g, ''),
+                cep: formData.cep.replace(/\D/g, ''),
                 administrador: { ...formData.administrador, nome: formData.nome }
             };
 
             await api.post('/admin/clinicas', payload);
 
-            // Chamada ajustada passando o formData que contém o objeto administrador
             const link = messagesService.gerarLinkWhatsApp(
                 formData,
                 isEdit ? 'ATUALIZACAO' : 'CADASTRO_NOVO',
@@ -212,9 +249,22 @@ const CadastroClinica = () => {
 
                         {passo === 2 && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                                <input className={inputStyle} name="crmvResponsavel" placeholder="CRMV Responsável" onChange={handleChange} value={formData.crmvResponsavel} />
-                                <input className={inputStyle} name="telefone" placeholder="WhatsApp (DDD)" onChange={handleChange} value={formData.telefone} />
-                                <input className={inputStyle} name="endereco" placeholder="Endereço Completo" onChange={handleChange} value={formData.endereco} />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input className={inputStyle} name="crmvResponsavel" placeholder="CRMV Resp." onChange={handleChange} value={formData.crmvResponsavel} />
+                                    <input className={inputStyle} name="telefone" placeholder="WhatsApp" onChange={handleChange} value={formData.telefone} />
+                                </div>
+
+                                {/* --- CAMPOS DE ENDEREÇO ESTRUTURADOS --- */}
+                                <div className="relative">
+                                    <input className={inputStyle} name="cep" placeholder="CEP" onChange={handleChange} onBlur={handleCEPBlur} value={formData.cep} />
+                                    <MapPin className="absolute right-3 top-3 text-slate-500" size={18} />
+                                </div>
+                                <input className={inputStyle} name="logradouro" placeholder="Rua / Logradouro" onChange={handleChange} value={formData.logradouro} />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input className={inputStyle} name="numero" placeholder="Número" onChange={handleChange} value={formData.numero} />
+                                    <input className={inputStyle} name="bairro" placeholder="Bairro" onChange={handleChange} value={formData.bairro} />
+                                </div>
+                                
                                 <div className="flex gap-2">
                                     <button onClick={() => setPasso(1)} className="w-1/2 bg-slate-800 p-4 rounded-xl font-bold uppercase text-xs">Voltar</button>
                                     <button onClick={() => setPasso(3)} className="w-1/2 bg-blue-600 p-4 rounded-xl font-bold uppercase text-xs">Próximo</button>
@@ -245,10 +295,3 @@ const CadastroClinica = () => {
 };
 
 export default CadastroClinica;
-
-/**
- * RESUMO DO CÓDIGO:
- * - Correção do Undefined: O messagesService local agora utiliza extração inteligente (dados.email || dados.administrador.email).
- * - Sincronização de Fluxo: O handleSubmit agora envia o formData completo para garantir que o serviço de mensagem encontre as credenciais.
- * - UX de WhatsApp: O link gerado agora inclui o LOGIN e SENHA corretamente preenchidos, respeitando a estrutura de dados aninhada.
- */

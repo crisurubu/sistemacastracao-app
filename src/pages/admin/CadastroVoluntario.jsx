@@ -94,24 +94,32 @@ const CadastroVoluntario = () => {
         finally { setLoading(false); }
     }, [formData.cpf]);
 
-    useEffect(() => {
-        if (location.state?.voluntario) {
-            const v = location.state.voluntario;
-            setIsEdit(true);
-            setFormData({
-                ...v,
-                cpf: maskCPF(v.cpf),
-                whatsapp: maskWhatsApp(v.whatsapp || ''),
-                cep: maskCEP(v.cep || ''),
-                administrador: { email: (v.administrador?.email || v.email || '').toLowerCase(), senha: '' }
-            });
-        } else if (!isEdit && !formData.administrador.senha) {
-            setFormData(prev => ({
-                ...prev,
-                administrador: { ...prev.administrador, senha: gerarSenhaAleatoria() }
-            }));
-        }
-    }, [location.state, isEdit, formData.administrador.senha]);
+   useEffect(() => {
+    // 1. Tenta pegar do 'voluntario' ou 'voluntarioCompleto' (para garantir compatibilidade)
+    const v = location.state?.voluntario || location.state?.voluntarioCompleto;
+
+    if (v) {
+        setIsEdit(true);
+        setPasso(1); // Você pode colocar 2 aqui se quiser pular a tela de CPF na edição
+        setFormData({
+            ...v,
+            cpf: maskCPF(v.cpf || ''),
+            whatsapp: maskWhatsApp(v.whatsapp || ''),
+            cep: maskCEP(v.cep || ''),
+            // Garante que o objeto administrador não fique undefined
+            administrador: { 
+                email: (v.administrador?.email || v.email || '').toLowerCase(), 
+                senha: '' 
+            }
+        });
+    } else if (!isEdit && !formData.administrador.senha) {
+        // Se for cadastro novo, gera a senha
+        setFormData(prev => ({
+            ...prev,
+            administrador: { ...prev.administrador, senha: gerarSenhaAleatoria() }
+        }));
+    }
+}, [location.state, isEdit]); // Removi o formData.administrador.senha das dependências para evitar loop
 
     const handleChange = (e) => {
         const { name, value } = e.target;

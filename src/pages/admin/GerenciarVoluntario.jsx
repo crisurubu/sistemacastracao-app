@@ -52,13 +52,13 @@ const GerenciarVoluntario = () => {
     };
 
     const editarVoluntario = () => {
-        navigate('/admin/voluntarios/novo', { 
-            state: { 
-                cpfPreenchido: voluntario.cpf,
-                modoEdicao: true 
-            } 
-        });
-    };
+    navigate('/admin/voluntarios/novo', { 
+        state: { 
+            voluntario: voluntario, // Enviando o objeto completo
+            modoEdicao: true 
+        } 
+    });
+};
 
     if (loading) return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">

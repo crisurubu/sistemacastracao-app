@@ -1,22 +1,23 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // LÓGICA DE AMBIENTE: Detecta se está local ou no Render
   baseURL: window.location.hostname === 'localhost' 
     ? 'http://localhost:8080/api' 
     : 'https://sistema-castracao-api.onrender.com/api',
-    
-  // ESSENCIAL: Permite que o navegador envie e receba cookies HttpOnly
   withCredentials: true 
 });
 
-// O interceptor de request agora fica muito mais limpo!
-api.interceptors.request.use(config => {
-    // Não precisamos mais do localStorage.getItem('token')
-    // O navegador anexa o Cookie "accessToken" automaticamente agora.
-    return config;
-}, error => {
+// Interceptor de Resposta: Captura falhas de permissão
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Se o cookie for inválido ou expirar, podemos limpar estados locais
+      // mas o redirecionamento deve ser feito com cautela para não entrar em loop
+      console.warn("Sessão inválida ou sem permissão.");
+    }
     return Promise.reject(error);
-});
+  }
+);
 
 export default api;
